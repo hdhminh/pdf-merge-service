@@ -151,10 +151,13 @@ jobs:
             "--channel", "${{ steps.meta.outputs.channel }}",
             "--tag", "${{ steps.meta.outputs.tag }}",
             "--releaseName", "${{ steps.meta.outputs.tag }}",
-            "--targetCommitish", "${{ github.sha }}",
             "--merge",
             "--publish"
           )
+
+          if ($targetRepoUrl -eq $sourceRepoUrl) {
+            $args += @("--targetCommitish", "${{ github.sha }}")
+          }
 
           if ("${{ steps.meta.outputs.channel }}" -eq "beta") {
             $args += "--pre"
