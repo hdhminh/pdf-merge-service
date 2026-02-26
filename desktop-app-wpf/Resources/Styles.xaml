@@ -1,0 +1,32 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Style TargetType="GroupBox">
+        <Setter Property="Margin" Value="0,8,0,0" />
+        <Setter Property="Padding" Value="8" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="BorderBrush" Value="{StaticResource BrushBorder}" />
+    </Style>
+
+    <Style TargetType="TextBox">
+        <Setter Property="Height" Value="34" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="Padding" Value="8,0" />
+    </Style>
+
+    <Style TargetType="PasswordBox">
+        <Setter Property="Height" Value="34" />
+        <Setter Property="Padding" Value="8,0" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+
+    <Style TargetType="ComboBox">
+        <Setter Property="Height" Value="34" />
+        <Setter Property="Padding" Value="8,0,24,0" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+
+    <Style TargetType="Button">
+        <Setter Property="Height" Value="34" />
+        <Setter Property="Padding" Value="12,0" />
+    </Style>
+</ResourceDictionary>

@@ -1,0 +1,66 @@
+﻿<!doctype html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PDF Stamp Ngrok Desktop</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="window-shell">
+      <header class="titlebar">
+        <div class="title-left">
+          <span class="app-dot"></span>
+          <div>
+            <h1>PDF Stamp Ngrok Desktop</h1>
+            <p>Quản lý token, tạo link và copy nhanh.</p>
+          </div>
+        </div>
+        <span id="ngrokBadge" class="badge badge-off">Chưa có link</span>
+      </header>
+
+      <section class="card">
+        <div class="card-head">
+          <h2>Token Profiles</h2>
+          <span id="profileBadge" class="badge badge-off">Chưa có token</span>
+        </div>
+
+        <div class="grid profile-row">
+          <select id="tokenSelect"></select>
+          <button id="applyTokenBtn" class="btn btn-secondary">Dùng token</button>
+          <button id="removeTokenBtn" class="btn btn-danger">Xóa</button>
+        </div>
+
+        <div class="grid add-row">
+          <input id="tokenNameInput" placeholder="Tên profile (ví dụ: Team A)" />
+          <input id="tokenValueInput" type="password" placeholder="Dán ngrok authtoken" />
+          <button id="addTokenBtn" class="btn btn-primary">Thêm token</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-head">
+          <h2>Ngrok Link</h2>
+          <span class="sub">Endpoint dùng cho Apps Script</span>
+        </div>
+
+        <div class="grid link-row">
+          <input id="publicStampUrl" readonly placeholder="Bấm ‘Tạo link ngrok’ để lấy endpoint" />
+          <button id="copyStampBtn" class="btn btn-secondary">Copy</button>
+        </div>
+
+        <div class="grid action-row">
+          <button id="newLinkBtn" class="btn btn-primary">Tạo link ngrok</button>
+          <button id="refreshBtn" class="btn btn-secondary">Làm mới</button>
+        </div>
+      </section>
+
+      <section class="card status-card">
+        <h2>Trạng thái</h2>
+        <p id="statusText">Sẵn sàng.</p>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>

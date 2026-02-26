@@ -1,0 +1,51 @@
+﻿name: Desktop App WPF CI
+
+on:
+  push:
+    paths:
+      - "desktop-app-wpf/**"
+      - "desktop-app-wpf.tests/**"
+      - ".github/workflows/desktop-app-wpf.yml"
+  pull_request:
+    paths:
+      - "desktop-app-wpf/**"
+      - "desktop-app-wpf.tests/**"
+      - ".github/workflows/desktop-app-wpf.yml"
+  workflow_dispatch:
+
+jobs:
+  build-test:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore
+        run: dotnet restore pdf-merge-service.sln
+
+      - name: Build
+        run: dotnet build pdf-merge-service.sln -c Release --no-restore
+
+      - name: Test
+        run: dotnet test pdf-merge-service.sln -c Release --no-build
+
+      - name: Publish single EXE
+        run: |
+          dotnet publish desktop-app-wpf/PdfStampNgrokDesktop.csproj `
+            -c Release `
+            -r win-x64 `
+            -p:PublishSingleFile=true `
+            -p:SelfContained=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -o artifacts/win-x64
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ngrok-sao-y-dien-tu-pdf-win-x64
+          path: artifacts/win-x64/*

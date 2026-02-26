@@ -1,0 +1,12 @@
+END USER LICENSE AGREEMENT (SHORT FORM)
+=======================================
+
+By using this application, you agree:
+
+1. The software is provided "as is", without warranties of any kind.
+2. You are responsible for your own ngrok account, quota, and compliance.
+3. You must not use this software for unlawful activities.
+4. The authors are not liable for indirect or consequential damages.
+5. You may not remove or alter third-party license notices.
+
+For production/commercial deployments, use an internal legal review.

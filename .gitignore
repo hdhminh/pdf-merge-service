@@ -1,0 +1,18 @@
+node_modules/
+.env
+merged_from_server.pdf
+
+# .NET / WPF
+**/bin/
+**/obj/
+**/TestResults/
+desktop-app-wpf/publish/
+desktop-app-wpf.tests/bin/
+desktop-app-wpf.tests/obj/
+
+# Logs / local app data
+*.log
+logs/
+
+# Local backups
+backup/

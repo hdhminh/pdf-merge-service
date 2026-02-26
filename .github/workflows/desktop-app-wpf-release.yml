@@ -1,0 +1,137 @@
+﻿name: Desktop App WPF Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version (semver), vd: 1.4.0"
+        required: true
+        type: string
+      channel:
+        description: "Release channel"
+        required: true
+        type: choice
+        default: stable
+        options:
+          - stable
+          - beta
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve release metadata
+        id: meta
+        shell: pwsh
+        run: |
+          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            $version = "${{ inputs.version }}".Trim()
+            $channel = "${{ inputs.channel }}".Trim().ToLowerInvariant()
+          }
+          else {
+            $version = "${{ github.ref_name }}".TrimStart('v')
+            $channel = "stable"
+          }
+
+          if (-not $version) { throw "Version is required." }
+          if ($version -notmatch '^\d+\.\d+\.\d+(-[0-9A-Za-z\.-]+)?$') {
+            throw "Invalid semver version: $version"
+          }
+
+          if ($channel -notin @("stable", "beta")) {
+            throw "Invalid channel: $channel"
+          }
+
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "channel=$channel" >> $env:GITHUB_OUTPUT
+          "tag=v$version" >> $env:GITHUB_OUTPUT
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Install Velopack CLI
+        run: dotnet tool update -g vpk
+
+      - name: Add .NET tools to PATH
+        shell: pwsh
+        run: |
+          "$env:USERPROFILE\\.dotnet\\tools" >> $env:GITHUB_PATH
+
+      - name: Restore
+        run: dotnet restore pdf-merge-service.sln
+
+      - name: Build
+        run: dotnet build pdf-merge-service.sln -c Release --no-restore
+
+      - name: Test
+        run: dotnet test pdf-merge-service.sln -c Release --no-build
+
+      - name: Publish app
+        run: |
+          dotnet publish desktop-app-wpf/PdfStampNgrokDesktop.csproj `
+            -c Release `
+            -r win-x64 `
+            -p:PublishSingleFile=true `
+            -p:SelfContained=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            -p:Version=${{ steps.meta.outputs.version }} `
+            -p:UpdateRepoUrl=https://github.com/${{ github.repository }} `
+            -p:UpdateChannel=${{ steps.meta.outputs.channel }} `
+            -o artifacts/publish/win-x64
+
+      - name: Pack Velopack release
+        run: |
+          vpk pack `
+            --packId PdfStampNgrokDesktop `
+            --packVersion ${{ steps.meta.outputs.version }} `
+            --packDir artifacts/publish/win-x64 `
+            --mainExe PdfStampNgrokDesktop.exe `
+            --packTitle "Ngrok Sao Y Dien Tu PDF" `
+            --packAuthors "PDF Stamp Team" `
+            --icon desktop-app-wpf/Assets/app.ico `
+            --runtime win-x64 `
+            --channel ${{ steps.meta.outputs.channel }} `
+            --outputDir artifacts/releases
+
+      - name: Upload release to GitHub
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $args = @(
+            "upload", "github",
+            "--repoUrl", "https://github.com/${{ github.repository }}",
+            "--token", $env:GH_TOKEN,
+            "--outputDir", "artifacts/releases",
+            "--channel", "${{ steps.meta.outputs.channel }}",
+            "--tag", "${{ steps.meta.outputs.tag }}",
+            "--releaseName", "${{ steps.meta.outputs.tag }}",
+            "--targetCommitish", "${{ github.sha }}",
+            "--merge",
+            "--publish"
+          )
+
+          if ("${{ steps.meta.outputs.channel }}" -eq "beta") {
+            $args += "--pre"
+          }
+
+          & vpk @args
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: velopack-${{ steps.meta.outputs.channel }}-${{ steps.meta.outputs.version }}
+          path: artifacts/releases/*

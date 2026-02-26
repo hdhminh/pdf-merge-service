@@ -1,0 +1,253 @@
+﻿<Window x:Class="PdfStampNgrokDesktop.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:conv="clr-namespace:PdfStampNgrokDesktop.Converters"
+        xmlns:helpers="clr-namespace:PdfStampNgrokDesktop.Helpers"
+        Title="{StaticResource TitleWindow}"
+        Icon="pack://application:,,,/Assets/app.ico"
+        Height="620"
+        Width="620"
+        MinHeight="560"
+        MinWidth="560"
+        SizeToContent="Height"
+        WindowStartupLocation="CenterScreen"
+        Background="{StaticResource BrushBackground}"
+        FontFamily="Segoe UI"
+        FontSize="13"
+        PreviewKeyDown="Window_OnUserActivity"
+        PreviewMouseMove="Window_OnUserActivity">
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+        <conv:BooleanToVisibilityInverseConverter x:Key="BooleanToVisibilityInverseConverter" />
+        <conv:LinkIndicatorToBrushConverter x:Key="LinkIndicatorToBrushConverter" />
+    </Window.Resources>
+
+    <Grid Margin="12">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <DockPanel Grid.Row="0" LastChildFill="False">
+            <TextBlock DockPanel.Dock="Left"
+                       Text="{StaticResource HeaderText}"
+                       FontSize="16"
+                       FontWeight="SemiBold"
+                       Foreground="{StaticResource BrushPrimaryText}" />
+
+            <Border DockPanel.Dock="Right"
+                    Background="#FFF6DF"
+                    BorderBrush="#E6D9AD"
+                    BorderThickness="1"
+                    CornerRadius="3"
+                    Padding="8,4"
+                    VerticalAlignment="Center">
+                <StackPanel Orientation="Horizontal">
+                    <Ellipse Width="10"
+                             Height="10"
+                             Margin="0,0,6,0"
+                             Fill="{Binding BadgeIndicator, Converter={StaticResource LinkIndicatorToBrushConverter}}" />
+                    <TextBlock Text="{Binding BadgeText}"
+                               Foreground="#8A6718"
+                               FontWeight="SemiBold" />
+                </StackPanel>
+            </Border>
+        </DockPanel>
+
+        <Border Grid.Row="1"
+                Margin="0,8,0,0"
+                Padding="8"
+                Background="#FFF2CC"
+                BorderBrush="#E3BE54"
+                BorderThickness="1"
+                CornerRadius="3"
+                Visibility="{Binding CanShowLockBanner, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <DockPanel LastChildFill="False">
+                <TextBlock Text="Phiên đang khóa do không thao tác."
+                           Foreground="#684F1D"
+                           VerticalAlignment="Center"
+                           DockPanel.Dock="Left" />
+                <Button Content="Mở khóa phiên"
+                        Command="{Binding UnlockCommand}"
+                        Height="30"
+                        MinWidth="110"
+                        DockPanel.Dock="Right" />
+            </DockPanel>
+        </Border>
+
+        <GroupBox Grid.Row="2" Header="Token">
+            <Grid Margin="4">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="8" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="8" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <Grid Grid.Row="0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="6" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="6" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <ComboBox Grid.Column="0"
+                              ItemsSource="{Binding Profiles}"
+                              DisplayMemberPath="Display"
+                              SelectedValuePath="Id"
+                              SelectedValue="{Binding SelectedProfileId, UpdateSourceTrigger=PropertyChanged}" />
+
+                    <Button Grid.Column="2"
+                            Content="Dùng"
+                            MinWidth="72"
+                            Command="{Binding UseTokenCommand}" />
+
+                    <Button Grid.Column="4"
+                            Content="Xóa"
+                            Foreground="#B42318"
+                            BorderBrush="#F0A8A4"
+                            MinWidth="60"
+                            Command="{Binding RemoveTokenCommand}" />
+                </Grid>
+
+                <Grid Grid.Row="2">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="6" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <Grid Grid.Column="0">
+                        <TextBox x:Name="TokenNameTextBox"
+                                 Text="{Binding NewProfileName, UpdateSourceTrigger=PropertyChanged}"
+                                 ToolTip="Tên profile (vd: Team A)" />
+                        <TextBlock Margin="10,0,0,0"
+                                   Foreground="#8A9AA7"
+                                   VerticalAlignment="Center"
+                                   IsHitTestVisible="False"
+                                   Text="Tên profile (vd: Team A)">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Text, ElementName=TokenNameTextBox}" Value="">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </Grid>
+
+                    <Grid Grid.Column="2">
+                        <PasswordBox Visibility="{Binding IsRevealTokenInput, Converter={StaticResource BooleanToVisibilityInverseConverter}}"
+                                     helpers:PasswordBoxAssistant.BindPassword="True"
+                                     helpers:PasswordBoxAssistant.BoundPassword="{Binding NewProfileToken, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                        <TextBox Visibility="{Binding IsRevealTokenInput, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                 Text="{Binding NewProfileToken, UpdateSourceTrigger=PropertyChanged}" />
+                        <TextBlock Margin="10,0,0,0"
+                                   Foreground="#8A9AA7"
+                                   VerticalAlignment="Center"
+                                   IsHitTestVisible="False"
+                                   Text="Nhập ngrok authtoken">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding NewProfileToken}" Value="">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </Grid>
+                </Grid>
+
+                <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Content="Thêm token"
+                            MinWidth="98"
+                            Margin="0,0,6,0"
+                            Command="{Binding AddTokenCommand}" />
+                    <Button Content="Hiện/Ẩn"
+                            MinWidth="84"
+                            Command="{Binding ToggleRevealCommand}" />
+                </StackPanel>
+            </Grid>
+        </GroupBox>
+
+        <GroupBox Grid.Row="3" Header="Link">
+            <Grid Margin="4">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="8" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <Grid Grid.Row="0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="6" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <Grid Grid.Column="0">
+                        <TextBox Text="{Binding StampUrl, Mode=OneWay}"
+                                 IsReadOnly="True"
+                                 VerticalContentAlignment="Center" />
+                        <TextBlock Margin="10,0,0,0"
+                                   Foreground="#8A9AA7"
+                                   VerticalAlignment="Center"
+                                   IsHitTestVisible="False"
+                                   Text="Link sẽ hiện ở đây sau khi bấm 'Tạo link'">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding StampUrl}" Value="">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </Grid>
+                    <Button Grid.Column="2"
+                            Content="{Binding CopyButtonText}"
+                            MinWidth="78"
+                            Command="{Binding CopyCommand}" />
+                </Grid>
+
+                <Grid Grid.Row="2">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="6" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <Button Grid.Column="0"
+                            Content="Tạo link"
+                            MinWidth="104"
+                            Command="{Binding CreateLinkCommand}" />
+                    <Button Grid.Column="2"
+                            Content="Hủy link"
+                            MinWidth="92"
+                            Command="{Binding CancelLinkCommand}" />
+                </Grid>
+            </Grid>
+        </GroupBox>
+
+        <GroupBox Grid.Row="4" Header="Trạng thái">
+            <StackPanel Margin="8,6,8,8">
+                <TextBlock Text="{Binding RealtimeState}" FontWeight="SemiBold" Foreground="{StaticResource BrushPrimaryText}" />
+                <TextBlock Text="{Binding StatusMessage}" Margin="0,4,0,0" TextWrapping="Wrap" />
+            </StackPanel>
+        </GroupBox>
+    </Grid>
+</Window>

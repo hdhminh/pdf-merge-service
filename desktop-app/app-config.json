@@ -1,0 +1,8 @@
+{
+  "backendPort": 3000,
+  "ngrokAuthtoken": "",
+  "ngrokRegion": "ap",
+  "autoStartNgrok": true,
+  "ngrokProfiles": [],
+  "activeNgrokProfileId": null
+}

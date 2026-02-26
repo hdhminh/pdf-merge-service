@@ -1,0 +1,29 @@
+PRIVACY NOTE
+============
+
+Ngrok Sao Y Điện Tử PDF stores data locally on the user machine:
+
+1) App config file
+- Path: %APPDATA%\PdfStampNgrokDesktop\app-config.json
+- Contains:
+  - backend/ngrok settings
+  - token profiles
+  - active profile id
+  - update channel choice
+
+2) Token protection
+- Tokens are encrypted using Windows DPAPI (CurrentUser scope).
+- Plaintext tokens are not written to config.
+
+3) Logs
+- Path: %APPDATA%\PdfStampNgrokDesktop\logs\
+- Logs are rolling daily and limited retention.
+- Tokens are masked in logs.
+
+4) Network
+- App communicates with:
+  - local backend (/health)
+  - ngrok local API (127.0.0.1:4040)
+  - optional update manifest URL (if configured)
+
+No cloud telemetry is sent by default.

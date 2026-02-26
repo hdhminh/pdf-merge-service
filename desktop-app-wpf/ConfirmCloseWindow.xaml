@@ -1,0 +1,54 @@
+<Window x:Class="PdfStampNgrokDesktop.ConfirmCloseWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Xác nhận thoát"
+        Width="340"
+        Height="170"
+        MinWidth="340"
+        MinHeight="170"
+        MaxWidth="340"
+        MaxHeight="170"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner"
+        WindowStyle="ToolWindow"
+        ShowInTaskbar="False"
+        Background="#F7F9FC"
+        FontFamily="Segoe UI"
+        FontSize="13">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="10" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="12" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0"
+                   Text="Thoát ứng dụng?"
+                   FontSize="18"
+                   FontWeight="SemiBold"
+                   Foreground="#0F2C3F" />
+
+        <TextBlock Grid.Row="2"
+                   Text="Backend và ngrok sẽ dừng."
+                   TextWrapping="Wrap"
+                   Foreground="#334E68" />
+
+        <StackPanel Grid.Row="4"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right">
+            <Button Width="88"
+                    Height="32"
+                    Margin="0,0,8,0"
+                    Content="Ở lại"
+                    Click="CancelButton_Click"
+                    IsCancel="True" />
+            <Button Width="88"
+                    Height="32"
+                    Content="Thoát"
+                    Click="ConfirmButton_Click"
+                    IsDefault="True" />
+        </StackPanel>
+    </Grid>
+</Window>
