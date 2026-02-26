@@ -18,6 +18,7 @@ Trong repo code private (`pdf-merge-service`), vao:
 Them:
 - Variable: `UPDATE_FEED_REPO_URL`
   - Value: `https://github.com/hdhminh/pdf-merge-service-updates`
+  - Ghi chu: workflow hien da set san default URL nay, variable chi can neu ban muon doi repo feed.
 
 - Secret: `UPDATE_FEED_PAT`
   - PAT de upload release sang feed repo.
