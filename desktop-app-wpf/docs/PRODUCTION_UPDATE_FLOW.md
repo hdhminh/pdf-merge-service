@@ -41,3 +41,10 @@
 - Kenh release:
   - `stable` cho production.
   - `beta` cho thu nghiem (workflow co support).
+
+## 7) Kien truc private code
+- Dung 2 repo:
+  - Repo code: private.
+  - Repo update feed: public (chi chua release assets).
+- Xem huong dan chi tiet:
+  - `desktop-app-wpf/docs/PRIVATE_CODE_PUBLIC_FEED_SETUP.md`

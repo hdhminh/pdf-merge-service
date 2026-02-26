@@ -18,6 +18,10 @@ on:
         options:
           - stable
           - beta
+      feed_repo_url:
+        description: "Optional update feed repo URL (https://github.com/<owner>/<repo>)"
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -35,13 +39,19 @@ jobs:
         id: meta
         shell: pwsh
         run: |
+          $defaultFeedRepoUrl = "https://github.com/${{ github.repository }}"
+          $configuredFeedRepoUrl = "${{ vars.UPDATE_FEED_REPO_URL }}".Trim()
+          $inputFeedRepoUrl = "${{ inputs.feed_repo_url }}".Trim()
+
           if ("${{ github.event_name }}" -eq "workflow_dispatch") {
             $version = "${{ inputs.version }}".Trim()
             $channel = "${{ inputs.channel }}".Trim().ToLowerInvariant()
+            $feedRepoUrl = if ($inputFeedRepoUrl) { $inputFeedRepoUrl } elseif ($configuredFeedRepoUrl) { $configuredFeedRepoUrl } else { $defaultFeedRepoUrl }
           }
           else {
             $version = "${{ github.ref_name }}".TrimStart('v')
             $channel = "stable"
+            $feedRepoUrl = if ($configuredFeedRepoUrl) { $configuredFeedRepoUrl } else { $defaultFeedRepoUrl }
           }
 
           if (-not $version) { throw "Version is required." }
@@ -53,9 +63,19 @@ jobs:
             throw "Invalid channel: $channel"
           }
 
+          $feedRepoUrl = $feedRepoUrl.TrimEnd('/')
+          if ($feedRepoUrl.EndsWith(".git")) {
+            $feedRepoUrl = $feedRepoUrl.Substring(0, $feedRepoUrl.Length - 4)
+          }
+
+          if ($feedRepoUrl -notmatch '^https://github\.com/[^/]+/[^/]+$') {
+            throw "Invalid feed repo URL: $feedRepoUrl"
+          }
+
           "version=$version" >> $env:GITHUB_OUTPUT
           "channel=$channel" >> $env:GITHUB_OUTPUT
           "tag=v$version" >> $env:GITHUB_OUTPUT
+          "feed_repo_url=$feedRepoUrl" >> $env:GITHUB_OUTPUT
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
@@ -88,7 +108,7 @@ jobs:
             -p:SelfContained=true `
             -p:IncludeNativeLibrariesForSelfExtract=true `
             -p:Version=${{ steps.meta.outputs.version }} `
-            -p:UpdateRepoUrl=https://github.com/${{ github.repository }} `
+            -p:UpdateRepoUrl=${{ steps.meta.outputs.feed_repo_url }} `
             -p:UpdateChannel=${{ steps.meta.outputs.channel }} `
             -o artifacts/publish/win-x64
 
@@ -109,12 +129,24 @@ jobs:
       - name: Upload release to GitHub
         shell: pwsh
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SOURCE_GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          UPDATE_FEED_PAT: ${{ secrets.UPDATE_FEED_PAT }}
         run: |
+          $sourceRepoUrl = "https://github.com/${{ github.repository }}"
+          $targetRepoUrl = "${{ steps.meta.outputs.feed_repo_url }}"
+
+          $token = $env:SOURCE_GH_TOKEN
+          if ($targetRepoUrl -ne $sourceRepoUrl) {
+            if (-not $env:UPDATE_FEED_PAT) {
+              throw "Missing secret UPDATE_FEED_PAT for cross-repo release upload."
+            }
+            $token = $env:UPDATE_FEED_PAT
+          }
+
           $args = @(
             "upload", "github",
-            "--repoUrl", "https://github.com/${{ github.repository }}",
-            "--token", $env:GH_TOKEN,
+            "--repoUrl", $targetRepoUrl,
+            "--token", $token,
             "--outputDir", "artifacts/releases",
             "--channel", "${{ steps.meta.outputs.channel }}",
             "--tag", "${{ steps.meta.outputs.tag }}",
