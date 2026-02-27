@@ -1145,8 +1145,7 @@ function addSignatureFieldsForFoxit(
   const minBottom = Math.max(0, toNumber(signatureFieldsLayout?.minBottom, 8));
   const minHeight = Math.max(10, toNumber(signatureFieldsLayout?.minHeight, 12));
   const minWidth = Math.max(24, toNumber(signatureFieldsLayout?.minWidth, 120));
-  const overlap = signatureFieldsLayout?.overlap === true;
-  const overlapOffsetY = toNumber(signatureFieldsLayout?.overlapOffsetY, 0);
+  const overlap = signatureFieldsLayout?.overlap !== false;
 
   const areaLeft = panelGeometry.marginLeft + sideInset;
   const areaRight =
@@ -1173,14 +1172,16 @@ function addSignatureFieldsForFoxit(
   if (!Number.isFinite(fieldWidth) || fieldWidth < 24) {
     return [];
   }
-  const overlapOffsetX = hasNumericValue(signatureFieldsLayout?.overlapOffsetX)
-    ? Number(signatureFieldsLayout.overlapOffsetX)
-    : fieldWidth * 0.075;
-
   let fieldHeight = Math.max(
     minHeight,
     toNumber(signatureFieldsLayout?.height, 52),
   );
+  const overlapOffsetX = hasNumericValue(signatureFieldsLayout?.overlapOffsetX)
+    ? Number(signatureFieldsLayout.overlapOffsetX)
+    : 0;
+  const overlapOffsetY = hasNumericValue(signatureFieldsLayout?.overlapOffsetY)
+    ? Number(signatureFieldsLayout.overlapOffsetY)
+    : -fieldHeight * 0.25;
   let y = panelGeometry.notaryLineY - lineGap - fieldHeight;
 
   if (y < minBottom) {
@@ -1257,6 +1258,7 @@ function addSignatureFieldsForFoxit(
       y: enterpriseRect.y,
       width: enterpriseRect.width,
       height: enterpriseRect.height,
+      rotation: normalizeRotationAngle(pageMetrics?.rotation),
     },
     {
       name: personalName,
@@ -1265,6 +1267,7 @@ function addSignatureFieldsForFoxit(
       y: personalRect.y,
       width: personalRect.width,
       height: personalRect.height,
+      rotation: normalizeRotationAngle(pageMetrics?.rotation),
     },
   ];
 }
@@ -1283,7 +1286,7 @@ function resolveSignatureFieldToolDllPath() {
     "bin",
     "Release",
   ];
-  const frameworkDirs = ["net10.0", "net9.0", "net8.0"];
+  const frameworkDirs = ["net8.0", "net9.0", "net10.0"];
   const baseDirs = [__dirname, path.join(__dirname, "..", "..")];
 
   for (const baseDir of baseDirs) {
@@ -1334,10 +1337,7 @@ function injectSignatureFieldsWithIText(
   try {
     fs.writeFileSync(inputPath, pdfBytes);
 
-    const borderWidth = Math.max(
-      0.25,
-      toNumber(signatureFieldsLayout?.borderWidth, 1),
-    );
+    const borderWidth = Math.max(0, toNumber(signatureFieldsLayout?.borderWidth, 0));
     const borderGrayRaw = toNumber(signatureFieldsLayout?.borderGray, 0.65);
     const borderGray = Math.min(1, Math.max(0, borderGrayRaw));
     const replaceExisting = signatureFieldsLayout?.replaceExisting !== false;
@@ -1355,6 +1355,7 @@ function injectSignatureFieldsWithIText(
         y: Number(field.y),
         width: Number(field.width),
         height: Number(field.height),
+        rotation: Number(field.rotation),
       })),
     };
     fs.writeFileSync(jobPath, JSON.stringify(job), "utf8");

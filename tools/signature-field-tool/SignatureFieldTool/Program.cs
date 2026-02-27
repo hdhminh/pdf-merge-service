@@ -100,13 +100,35 @@ try
         var annotation = sig.GetFirstFormAnnotation();
         if (annotation is not null)
         {
+            var normalizedRotation = ((field.Rotation % 360) + 360) % 360;
+            var rotation = normalizedRotation switch
+            {
+                < 45 => 0,
+                < 135 => 90,
+                < 225 => 180,
+                < 315 => 270,
+                _ => 0,
+            };
             annotation.SetVisibility(PdfFormAnnotation.VISIBLE);
             annotation.SetBorderWidth((float)job.BorderWidth);
             annotation.SetBorderColor(new DeviceGray((float)job.BorderGray));
+            annotation.SetRotation(rotation);
             annotation.GetWidget().SetFlags(PdfAnnotation.PRINT);
         }
 
         form.AddField(sig, page);
+
+        if (field.Rotation % 360 != 0)
+        {
+            var added = form.GetField(field.Name);
+            if (added is not null)
+            {
+                var dict = added.GetPdfObject();
+                var mk = dict.GetAsDictionary(PdfName.MK) ?? new PdfDictionary();
+                mk.Put(PdfName.R, new PdfNumber(((field.Rotation % 360) + 360) % 360));
+                dict.Put(PdfName.MK, mk);
+            }
+        }
     }
 
     pdf.Close();
@@ -137,4 +159,5 @@ internal sealed class SignatureFieldSpec
     public double Y { get; set; }
     public double Width { get; set; }
     public double Height { get; set; }
+    public int Rotation { get; set; }
 }

@@ -155,18 +155,20 @@ Notes:
 - `imageLayout.copyStamp.textBaselineOffset` adjusts vertical centering of the text inside the stamp.
 - `copyStampPage` controls where the text stamp goes: `first` (default), `last`, or a 0-based page index.
 - By default, backend adds 2 unsigned PDF signature fields that Foxit Reader can detect:
-  - left field for enterprise signature (`sig_enterprise`)
-  - right field for personal signature (`sig_personal`)
-  - both are on the same row below the notary line (`CÔNG CHỨNG VIÊN` by default)
+  - enterprise field (`sig_enterprise`)
+  - personal field (`sig_personal`)
+  - personal field is placed below enterprise with 25% vertical overlap
   - signature fields are injected by the .NET/iText helper at `tools/signature-field-tool/SignatureFieldTool`
 - Build helper before running backend:
   - `dotnet build tools/signature-field-tool/SignatureFieldTool/SignatureFieldTool.csproj -c Release`
   - `dotnet` runtime/SDK is required at runtime when `signatureFields.enabled` is `true`
 - `signatureFields` controls field names and geometry (`enabled`, `enterpriseName`, `personalName`, `height`, `width`, `centerGap`, `lineGap`, `sideInset`, `replaceExisting`, `overlap`, `overlapOffsetX`, `overlapOffsetY`).
 - `replaceExisting` defaults to `true`: if a signature field with the same name already exists, backend replaces it instead of creating `_2`, `_3`, ...
-- `signatureFields.overlap` defaults to `false` (separate left/right fields). Set `overlap: true` to place both fields at nearly the same location.
+- `signatureFields.overlap` defaults to `true` (stacked/overlapped layout). Set `overlap: false` to separate left/right fields.
 - `overlapOffsetX` / `overlapOffsetY` controls offset between overlapped fields.
-  - `overlapOffsetX` default is `7.5%` of field width (shift personal signature to the right for easier click in Foxit).
+  - default `overlapOffsetX` is `0`
+  - default `overlapOffsetY` is `-25%` of field height (personal field lower)
+  - default `signatureFields.borderWidth` is `0` (hidden frame border)
   - Set `overlapOffsetX` explicitly if you want another value.
 - You can override orientation-specific layout with `portrait` / `landscape` buckets:
 
