@@ -1,5 +1,7 @@
 const fs = require("fs");
+const os = require("os");
 const path = require("path");
+const { spawnSync } = require("child_process");
 const fontkit = require("@pdf-lib/fontkit");
 
 // Avoid pdfjs-dist trying to load node-canvas for rendering; we only read text.
@@ -14,19 +16,12 @@ const pdfjsLib = require("pdfjs-dist/legacy/build/pdf.js");
 const {
   PDFDocument,
   BlendMode,
-  PDFSignature,
   concatTransformationMatrix,
-  degrees,
   popGraphicsState,
   pushGraphicsState,
   rgb,
 } = require("pdf-lib");
-const {
-  PDFAcroSignature,
-  PDFDict,
-  PDFName,
-  PDFStream,
-} = require("pdf-lib/cjs/core");
+const { PDFDict, PDFName, PDFStream } = require("pdf-lib/cjs/core");
 
 const DEFAULT_CERTIFICATION_TEXT = "CHỨNG THỰC BẢN SAO ĐÚNG VỚI BẢN CHÍNH";
 
@@ -1129,126 +1124,16 @@ function reserveFieldName(preferredName, existingNames) {
   return candidate;
 }
 
-function forceRemoveSignatureFieldByName(form, pdfDoc, fieldName) {
-  const field = form.getFieldMaybe(fieldName);
-  if (!field || field.constructor?.name !== "PDFSignature") {
-    return false;
-  }
-
-  try {
-    form.removeField(field);
-    return true;
-  } catch (_err) {
-    // fallback to low-level cleanup when field has no appearance reference
-  }
-
-  try {
-    const widgetRefs = [];
-    const kids = field.acroField.Kids();
-
-    if (kids) {
-      for (let idx = 0, len = kids.size(); idx < len; idx += 1) {
-        const ref = kids.get(idx);
-        if (ref) {
-          widgetRefs.push(ref);
-        }
-      }
-    } else {
-      widgetRefs.push(field.ref);
-    }
-
-    const pages = pdfDoc.getPages();
-    for (const ref of widgetRefs) {
-      for (const page of pages) {
-        try {
-          page.node.removeAnnot(ref);
-        } catch (_err) {
-          // skip missing annotations
-        }
-      }
-      try {
-        pdfDoc.context.delete(ref);
-      } catch (_err) {
-        // skip context cleanup errors
-      }
-    }
-
-    try {
-      form.acroForm.removeField(field.acroField);
-    } catch (_err) {
-      // already removed or unavailable
-    }
-
-    try {
-      pdfDoc.context.delete(field.ref);
-    } catch (_err) {
-      // skip context cleanup errors
-    }
-
-    return true;
-  } catch (_err) {
-    return false;
-  }
-}
-
-function createUnsignedSignatureFieldOnPage(
-  pdfDoc,
-  page,
-  pageMetrics,
-  fieldName,
-  rect,
-) {
-  const pageRotation = normalizeRotationAngle(
-    pageMetrics?.rotation ?? page.getRotation()?.angle,
-  );
-  const widgetRotation = pageRotation;
-
-  const acroSignatureDict = pdfDoc.context.obj({
-    FT: "Sig",
-    Kids: [],
-  });
-  const acroSignatureRef = pdfDoc.context.register(acroSignatureDict);
-  const acroSignature = PDFAcroSignature.fromDict(
-    acroSignatureDict,
-    acroSignatureRef,
-  );
-  acroSignature.setPartialName(fieldName);
-
-  const form = pdfDoc.getForm();
-  form.acroForm.addField(acroSignatureRef);
-
-  const signatureField = PDFSignature.of(acroSignature, acroSignatureRef, pdfDoc);
-  const widget = signatureField.createWidget({
-    x: rect.x,
-    y: rect.y,
-    width: rect.width,
-    height: rect.height,
-    borderColor: rgb(0.65, 0.65, 0.65),
-    borderWidth: 1,
-    rotate: degrees(0),
-    hidden: false,
-    page: page.ref,
-  });
-
-  if (widgetRotation !== 0) {
-    widget.getOrCreateAppearanceCharacteristics().setRotation(widgetRotation);
-  }
-
-  const widgetRef = pdfDoc.context.register(widget.dict);
-
-  signatureField.acroField.addWidget(widgetRef);
-  page.node.addAnnot(widgetRef);
-}
-
 function addSignatureFieldsForFoxit(
   pdfDoc,
   page,
+  pageIndex,
   pageMetrics,
   panelGeometry,
   signatureFieldsLayout,
 ) {
   if (!panelGeometry || signatureFieldsLayout?.enabled === false) {
-    return;
+    return [];
   }
 
   const sideInset = Math.max(
@@ -1260,7 +1145,7 @@ function addSignatureFieldsForFoxit(
   const minBottom = Math.max(0, toNumber(signatureFieldsLayout?.minBottom, 8));
   const minHeight = Math.max(10, toNumber(signatureFieldsLayout?.minHeight, 12));
   const minWidth = Math.max(24, toNumber(signatureFieldsLayout?.minWidth, 120));
-  const overlap = signatureFieldsLayout?.overlap !== false;
+  const overlap = signatureFieldsLayout?.overlap === true;
   const overlapOffsetY = toNumber(signatureFieldsLayout?.overlapOffsetY, 0);
 
   const areaLeft = panelGeometry.marginLeft + sideInset;
@@ -1269,7 +1154,7 @@ function addSignatureFieldsForFoxit(
   const availableWidth = areaRight - areaLeft;
 
   if (!Number.isFinite(availableWidth) || availableWidth <= minWidth * 2) {
-    return;
+    return [];
   }
 
   if (centerGap > availableWidth * 0.35) {
@@ -1286,7 +1171,7 @@ function addSignatureFieldsForFoxit(
   }
 
   if (!Number.isFinite(fieldWidth) || fieldWidth < 24) {
-    return;
+    return [];
   }
   const overlapOffsetX = hasNumericValue(signatureFieldsLayout?.overlapOffsetX)
     ? Number(signatureFieldsLayout.overlapOffsetX)
@@ -1308,7 +1193,7 @@ function addSignatureFieldsForFoxit(
   }
 
   if (!Number.isFinite(fieldHeight) || fieldHeight < minHeight) {
-    return;
+    return [];
   }
 
   const enterpriseRectDisplay = {
@@ -1342,7 +1227,6 @@ function addSignatureFieldsForFoxit(
     personalRectDisplay,
   );
 
-  const form = pdfDoc.getForm();
   const enterprisePreferredName = sanitizeSignatureFieldName(
     signatureFieldsLayout?.enterpriseName,
     "sig_enterprise",
@@ -1353,30 +1237,151 @@ function addSignatureFieldsForFoxit(
   );
   const replaceExisting = signatureFieldsLayout?.replaceExisting !== false;
 
-  if (replaceExisting) {
-    for (const fieldName of [enterprisePreferredName, personalPreferredName]) {
-      forceRemoveSignatureFieldByName(form, pdfDoc, fieldName);
+  let enterpriseName = enterprisePreferredName;
+  let personalName = personalPreferredName;
+
+  if (!replaceExisting) {
+    const form = pdfDoc.getForm();
+    const existingNames = new Set(form.getFields().map((field) => field.getName()));
+    enterpriseName = reserveFieldName(enterprisePreferredName, existingNames);
+    personalName = reserveFieldName(personalPreferredName, existingNames);
+  } else if (enterpriseName === personalName) {
+    personalName = `${personalName}_2`;
+  }
+
+  return [
+    {
+      name: enterpriseName,
+      pageIndex,
+      x: enterpriseRect.x,
+      y: enterpriseRect.y,
+      width: enterpriseRect.width,
+      height: enterpriseRect.height,
+    },
+    {
+      name: personalName,
+      pageIndex,
+      x: personalRect.x,
+      y: personalRect.y,
+      width: personalRect.width,
+      height: personalRect.height,
+    },
+  ];
+}
+
+let signatureFieldToolDllPathCache;
+
+function resolveSignatureFieldToolDllPath() {
+  if (signatureFieldToolDllPathCache !== undefined) {
+    return signatureFieldToolDllPathCache;
+  }
+
+  const toolRelativeParts = [
+    "tools",
+    "signature-field-tool",
+    "SignatureFieldTool",
+    "bin",
+    "Release",
+  ];
+  const frameworkDirs = ["net10.0", "net9.0", "net8.0"];
+  const baseDirs = [__dirname, path.join(__dirname, "..", "..")];
+
+  for (const baseDir of baseDirs) {
+    for (const framework of frameworkDirs) {
+      const dllPath = path.join(
+        baseDir,
+        ...toolRelativeParts,
+        framework,
+        "SignatureFieldTool.dll",
+      );
+      if (fs.existsSync(dllPath)) {
+        signatureFieldToolDllPathCache = dllPath;
+        return signatureFieldToolDllPathCache;
+      }
     }
   }
 
-  const existingNames = new Set(form.getFields().map((field) => field.getName()));
-  const enterpriseName = reserveFieldName(enterprisePreferredName, existingNames);
-  const personalName = reserveFieldName(personalPreferredName, existingNames);
+  signatureFieldToolDllPathCache = null;
+  return signatureFieldToolDllPathCache;
+}
 
-  createUnsignedSignatureFieldOnPage(
-    pdfDoc,
-    page,
-    pageMetrics,
-    enterpriseName,
-    enterpriseRect,
-  );
-  createUnsignedSignatureFieldOnPage(
-    pdfDoc,
-    page,
-    pageMetrics,
-    personalName,
-    personalRect,
-  );
+function injectSignatureFieldsWithIText(
+  pdfBytes,
+  fieldSpecs,
+  signatureFieldsLayout,
+) {
+  if (!Array.isArray(fieldSpecs) || fieldSpecs.length === 0) {
+    return pdfBytes;
+  }
+
+  const dllPath = resolveSignatureFieldToolDllPath();
+  if (!dllPath) {
+    throw new Error(
+      "SignatureFieldTool.dll not found. Build tools/signature-field-tool/SignatureFieldTool first.",
+    );
+  }
+
+  const dotnetCheck = spawnSync("dotnet", ["--version"], { encoding: "utf8" });
+  if (dotnetCheck.error || dotnetCheck.status !== 0) {
+    throw new Error("dotnet runtime is required to inject signature fields.");
+  }
+
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "pdf-sigfields-"));
+  const inputPath = path.join(tmpDir, "input.pdf");
+  const outputPath = path.join(tmpDir, "output.pdf");
+  const jobPath = path.join(tmpDir, "job.json");
+
+  try {
+    fs.writeFileSync(inputPath, pdfBytes);
+
+    const borderWidth = Math.max(
+      0.25,
+      toNumber(signatureFieldsLayout?.borderWidth, 1),
+    );
+    const borderGrayRaw = toNumber(signatureFieldsLayout?.borderGray, 0.65);
+    const borderGray = Math.min(1, Math.max(0, borderGrayRaw));
+    const replaceExisting = signatureFieldsLayout?.replaceExisting !== false;
+
+    const job = {
+      input: inputPath,
+      output: outputPath,
+      replaceExisting,
+      borderWidth,
+      borderGray,
+      fields: fieldSpecs.map((field) => ({
+        name: String(field.name || ""),
+        pageIndex: Number(field.pageIndex),
+        x: Number(field.x),
+        y: Number(field.y),
+        width: Number(field.width),
+        height: Number(field.height),
+      })),
+    };
+    fs.writeFileSync(jobPath, JSON.stringify(job), "utf8");
+
+    const runResult = spawnSync("dotnet", [dllPath, "--job", jobPath], {
+      encoding: "utf8",
+      maxBuffer: 8 * 1024 * 1024,
+    });
+    if (runResult.error || runResult.status !== 0) {
+      const stderr = (runResult.stderr || "").trim();
+      const stdout = (runResult.stdout || "").trim();
+      const details = stderr || stdout || "unknown error";
+      throw new Error(`Signature field injection failed: ${details}`);
+    }
+
+    if (!fs.existsSync(outputPath)) {
+      throw new Error("Signature field injection failed: output PDF not produced.");
+    }
+
+    return fs.readFileSync(outputPath);
+  } finally {
+    try {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    } catch (_err) {
+      // best effort temp cleanup
+    }
+  }
 }
 
 function drawCertificationPanel(page, data, layout, pageMetrics) {
@@ -1708,9 +1713,10 @@ async function stampPdf(pdfBuffer, options) {
     endDisplaySpace(page, transformedDisplaySpace);
   }
 
-  addSignatureFieldsForFoxit(
+  const signatureFieldSpecs = addSignatureFieldsForFoxit(
     pdfDoc,
     page,
+    pages.length - 1,
     pageMetrics,
     panelGeometry,
     signatureFieldsLayout,
@@ -1754,7 +1760,12 @@ async function stampPdf(pdfBuffer, options) {
     }
   }
 
-  return pdfDoc.save();
+  const stampedBytes = await pdfDoc.save({ useObjectStreams: false });
+  return injectSignatureFieldsWithIText(
+    stampedBytes,
+    signatureFieldSpecs,
+    signatureFieldsLayout,
+  );
 }
 
 module.exports = {

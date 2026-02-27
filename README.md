@@ -158,9 +158,13 @@ Notes:
   - left field for enterprise signature (`sig_enterprise`)
   - right field for personal signature (`sig_personal`)
   - both are on the same row below the notary line (`CÔNG CHỨNG VIÊN` by default)
+  - signature fields are injected by the .NET/iText helper at `tools/signature-field-tool/SignatureFieldTool`
+- Build helper before running backend:
+  - `dotnet build tools/signature-field-tool/SignatureFieldTool/SignatureFieldTool.csproj -c Release`
+  - `dotnet` runtime/SDK is required at runtime when `signatureFields.enabled` is `true`
 - `signatureFields` controls field names and geometry (`enabled`, `enterpriseName`, `personalName`, `height`, `width`, `centerGap`, `lineGap`, `sideInset`, `replaceExisting`, `overlap`, `overlapOffsetX`, `overlapOffsetY`).
 - `replaceExisting` defaults to `true`: if a signature field with the same name already exists, backend replaces it instead of creating `_2`, `_3`, ...
-- `signatureFields.overlap` defaults to `true` (both fields overlap at the same location). Set `overlap: false` to separate left/right.
+- `signatureFields.overlap` defaults to `false` (separate left/right fields). Set `overlap: true` to place both fields at nearly the same location.
 - `overlapOffsetX` / `overlapOffsetY` controls offset between overlapped fields.
   - `overlapOffsetX` default is `7.5%` of field width (shift personal signature to the right for easier click in Foxit).
   - Set `overlapOffsetX` explicitly if you want another value.
