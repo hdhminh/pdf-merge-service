@@ -39,7 +39,7 @@ jobs:
         id: meta
         shell: pwsh
         run: |
-          $defaultFeedRepoUrl = "https://github.com/hdhminh/pdf-merge-service-updates"
+          $defaultFeedRepoUrl = "https://github.com/${{ github.repository }}"
           $configuredFeedRepoUrl = "${{ vars.UPDATE_FEED_REPO_URL }}".Trim()
           $inputFeedRepoUrl = "${{ inputs.feed_repo_url }}".Trim()
 
