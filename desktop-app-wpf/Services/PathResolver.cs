@@ -1,30 +1,62 @@
-﻿using System.IO;
+using System.IO;
 
 namespace PdfStampNgrokDesktop.Services;
 
 internal static class PathResolver
 {
+    private const string BackendEntryFileName = "index.js";
+    private const string BackendSubDirectoryName = "backend";
+
     public static string ResolveRepoRoot()
     {
         static bool IsBackendRoot(string path)
         {
-            return File.Exists(Path.Combine(path, "index.js"));
+            return File.Exists(Path.Combine(path, BackendEntryFileName));
+        }
+
+        static string? ResolveBackendRootFromPath(string? path)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                return null;
+            }
+
+            var trimmed = path.Trim();
+            if (!Directory.Exists(trimmed))
+            {
+                return null;
+            }
+
+            if (IsBackendRoot(trimmed))
+            {
+                return trimmed;
+            }
+
+            var nestedBackend = Path.Combine(trimmed, BackendSubDirectoryName);
+            return IsBackendRoot(nestedBackend) ? nestedBackend : null;
         }
 
         var fromEnv = Environment.GetEnvironmentVariable("BACKEND_ROOT")?.Trim();
-        if (!string.IsNullOrWhiteSpace(fromEnv) && Directory.Exists(fromEnv) && IsBackendRoot(fromEnv))
+        var resolvedFromEnv = ResolveBackendRootFromPath(fromEnv);
+        if (!string.IsNullOrWhiteSpace(resolvedFromEnv))
         {
-            return fromEnv;
+            return resolvedFromEnv;
         }
 
-        static string? FindParentWithBackend(string startPath)
+        static string? FindParentWithBackend(string? startPath)
         {
+            if (string.IsNullOrWhiteSpace(startPath) || !Directory.Exists(startPath))
+            {
+                return null;
+            }
+
             var current = new DirectoryInfo(startPath);
             while (current is not null)
             {
-                if (File.Exists(Path.Combine(current.FullName, "index.js")))
+                var resolved = ResolveBackendRootFromPath(current.FullName);
+                if (!string.IsNullOrWhiteSpace(resolved))
                 {
-                    return current.FullName;
+                    return resolved;
                 }
 
                 current = current.Parent;
@@ -46,7 +78,7 @@ internal static class PathResolver
         }
 
         throw new DirectoryNotFoundException(
-            "Khong tim thay backend (index.js). Hay chay app trong thu muc du an backend hoac cau hinh bien moi truong BACKEND_ROOT.");
+            "Khong tim thay backend (index.js). Hay dat backend canh app (backend\\index.js), chay app trong thu muc du an backend, hoac cau hinh bien moi truong BACKEND_ROOT.");
     }
 
     public static string ResolveNgrokCommand(string repoRoot)
@@ -57,13 +89,17 @@ internal static class PathResolver
             return fromEnv;
         }
 
+        var repoRootParent = Directory.GetParent(repoRoot)?.FullName;
         var candidates = new[]
         {
             Path.Combine(repoRoot, "desktop-app", "bin", "win32-x64", "ngrok.exe"),
+            string.IsNullOrWhiteSpace(repoRootParent)
+                ? string.Empty
+                : Path.Combine(repoRootParent, "bin", "win32-x64", "ngrok.exe"),
             Path.Combine(AppContext.BaseDirectory, "bin", "win32-x64", "ngrok.exe"),
             Path.Combine(repoRoot, "bin", "win32-x64", "ngrok.exe"),
         };
 
-        return candidates.FirstOrDefault(File.Exists) ?? "ngrok";
+        return candidates.Where(static x => !string.IsNullOrWhiteSpace(x)).FirstOrDefault(File.Exists) ?? "ngrok";
     }
 }

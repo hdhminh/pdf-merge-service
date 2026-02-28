@@ -34,6 +34,31 @@
       <CopyToPublishDirectory>Always</CopyToPublishDirectory>
       <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
     </None>
+
+    <None Include="..\index.js" Link="backend\index.js" Condition="Exists('..\index.js')">
+      <CopyToPublishDirectory>Always</CopyToPublishDirectory>
+      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+    </None>
+
+    <None Include="..\pdfStamp.js" Link="backend\pdfStamp.js" Condition="Exists('..\pdfStamp.js')">
+      <CopyToPublishDirectory>Always</CopyToPublishDirectory>
+      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+    </None>
+
+    <None Include="..\node_modules\**\*" Link="backend\node_modules\%(RecursiveDir)%(Filename)%(Extension)" Condition="Exists('..\node_modules')">
+      <CopyToPublishDirectory>Always</CopyToPublishDirectory>
+      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+    </None>
+
+    <None Include="..\bin\win32-x64\ngrok.exe" Link="bin\win32-x64\ngrok.exe" Condition="Exists('..\bin\win32-x64\ngrok.exe')">
+      <CopyToPublishDirectory>Always</CopyToPublishDirectory>
+      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+    </None>
+
+    <None Include="..\tools\signature-field-tool\SignatureFieldTool\bin\Release\**\*" Link="tools\signature-field-tool\SignatureFieldTool\bin\Release\%(RecursiveDir)%(Filename)%(Extension)" Condition="Exists('..\tools\signature-field-tool\SignatureFieldTool\bin\Release')">
+      <CopyToPublishDirectory>Always</CopyToPublishDirectory>
+      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+    </None>
   </ItemGroup>
 
   <ItemGroup>

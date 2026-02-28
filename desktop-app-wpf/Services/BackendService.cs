@@ -37,8 +37,8 @@ public sealed class BackendService : IBackendService
 
         try
         {
-            var repoRoot = PathResolver.ResolveRepoRoot();
-            var backendEntry = Path.Combine(repoRoot, "index.js");
+            var backendRoot = PathResolver.ResolveRepoRoot();
+            var backendEntry = Path.Combine(backendRoot, "index.js");
             if (!File.Exists(backendEntry))
             {
                 return Result.Fail(ErrorCode.NotFound, $"Không tìm thấy file backend: {backendEntry}");
@@ -48,7 +48,7 @@ public sealed class BackendService : IBackendService
             {
                 FileName = "node",
                 Arguments = "index.js",
-                WorkingDirectory = repoRoot,
+                WorkingDirectory = backendRoot,
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,

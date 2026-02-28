@@ -34,15 +34,15 @@ public sealed class NgrokService : INgrokService
 
         try
         {
-            var repoRoot = PathResolver.ResolveRepoRoot();
-            var command = PathResolver.ResolveNgrokCommand(repoRoot);
+            var backendRoot = PathResolver.ResolveRepoRoot();
+            var command = PathResolver.ResolveNgrokCommand(backendRoot);
             var args = BuildArguments(backendPort, token, region);
 
             var psi = new ProcessStartInfo
             {
                 FileName = command,
                 Arguments = args,
-                WorkingDirectory = repoRoot,
+                WorkingDirectory = backendRoot,
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
