@@ -34,6 +34,25 @@ jobs:
       - name: Install backend dependencies
         run: npm ci --omit=dev
 
+      - name: Ensure bundled ngrok
+        shell: pwsh
+        run: |
+          $targetDir = "bin/win32-x64"
+          $targetExe = Join-Path $targetDir "ngrok.exe"
+          if (Test-Path $targetExe) {
+            Write-Host "Using existing ngrok binary: $targetExe"
+            exit 0
+          }
+
+          New-Item -ItemType Directory -Path $targetDir -Force | Out-Null
+          $zipPath = Join-Path $env:RUNNER_TEMP "ngrok-v3-windows-amd64.zip"
+          Invoke-WebRequest -Uri "https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip" -OutFile $zipPath
+          Expand-Archive -Path $zipPath -DestinationPath $targetDir -Force
+
+          if (-not (Test-Path $targetExe)) {
+            throw "ngrok.exe was not found after extraction."
+          }
+
       - name: Restore
         run: dotnet restore pdf-merge-service.sln
 

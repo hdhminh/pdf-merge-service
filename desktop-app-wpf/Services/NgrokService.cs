@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.IO;
 using System.Net.Http;
 using System.Text.Json;
 using PdfStampNgrokDesktop.Core;
@@ -36,6 +37,13 @@ public sealed class NgrokService : INgrokService
         {
             var backendRoot = PathResolver.ResolveRepoRoot();
             var command = PathResolver.ResolveNgrokCommand(backendRoot);
+            if (!IsNgrokCommandUsable(command))
+            {
+                return Result.Fail(
+                    ErrorCode.NotFound,
+                    "Khong tim thay ngrok.exe. Vui long cap nhat app ban moi nhat hoac dat NGROK_CMD den duong dan ngrok.exe.");
+            }
+
             var args = BuildArguments(backendPort, token, region);
 
             var psi = new ProcessStartInfo
@@ -196,5 +204,66 @@ public sealed class NgrokService : INgrokService
         }
 
         return args;
+    }
+
+    private static bool IsNgrokCommandUsable(string command)
+    {
+        if (string.IsNullOrWhiteSpace(command))
+        {
+            return false;
+        }
+
+        if (File.Exists(command))
+        {
+            return true;
+        }
+
+        if (command.Contains(Path.DirectorySeparatorChar) || command.Contains(Path.AltDirectorySeparatorChar))
+        {
+            return false;
+        }
+
+        var pathEnv = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(pathEnv))
+        {
+            return false;
+        }
+
+        var pathExt = Environment.GetEnvironmentVariable("PATHEXT");
+        var extensions = (pathExt ?? ".EXE;.CMD;.BAT;.COM")
+            .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (extensions.Length == 0)
+        {
+            extensions = [".EXE"];
+        }
+
+        foreach (var dir in pathEnv.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            try
+            {
+                var candidate = Path.Combine(dir, command);
+                if (File.Exists(candidate))
+                {
+                    return true;
+                }
+
+                foreach (var ext in extensions)
+                {
+                    var withExt = candidate.EndsWith(ext, StringComparison.OrdinalIgnoreCase)
+                        ? candidate
+                        : candidate + ext;
+                    if (File.Exists(withExt))
+                    {
+                        return true;
+                    }
+                }
+            }
+            catch
+            {
+                // Continue scanning PATH entries.
+            }
+        }
+
+        return false;
     }
 }

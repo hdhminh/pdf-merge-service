@@ -79,21 +79,41 @@ public sealed class UpdateService : IUpdateService
 
     private static string ResolveRepoUrl(UpdateConfig updateConfig)
     {
-        var configured = (updateConfig.GitHubRepoUrl ?? string.Empty).Trim();
-        var fromBuild = BuildMetadata.UpdateRepoUrl;
-        var value = !string.IsNullOrWhiteSpace(configured) ? configured : fromBuild;
+        var configured = NormalizeRepoUrl(updateConfig.GitHubRepoUrl);
+        var fromBuild = NormalizeRepoUrl(BuildMetadata.UpdateRepoUrl);
 
+        if (IsUsableRepoUrl(configured))
+        {
+            return configured;
+        }
+
+        if (IsUsableRepoUrl(fromBuild))
+        {
+            return fromBuild;
+        }
+
+        return string.Empty;
+    }
+
+    private static string NormalizeRepoUrl(string? value)
+    {
+        return (value ?? string.Empty).Trim().TrimEnd('/');
+    }
+
+    private static bool IsUsableRepoUrl(string value)
+    {
         if (string.IsNullOrWhiteSpace(value))
         {
-            return string.Empty;
+            return false;
         }
 
         if (value.Contains("your-org/your-repo", StringComparison.OrdinalIgnoreCase)
-            || value.Contains("example/example", StringComparison.OrdinalIgnoreCase))
+            || value.Contains("example/example", StringComparison.OrdinalIgnoreCase)
+            || value.Contains("hdhminh/pdf-merge-service-updates", StringComparison.OrdinalIgnoreCase))
         {
-            return string.Empty;
+            return false;
         }
 
-        return value;
+        return true;
     }
 }

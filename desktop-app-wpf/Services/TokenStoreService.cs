@@ -278,19 +278,41 @@ public sealed class TokenStoreService : ITokenStoreService
 
     private static string ResolveUpdateRepoUrl(UpdateConfig? update)
     {
-        var current = (update?.GitHubRepoUrl ?? string.Empty).Trim();
-        if (!string.IsNullOrWhiteSpace(current))
+        var current = NormalizeRepoUrl(update?.GitHubRepoUrl);
+        if (IsUsableRepoUrl(current))
         {
             return current;
         }
 
-        var buildValue = BuildMetadata.UpdateRepoUrl;
-        if (!string.IsNullOrWhiteSpace(buildValue))
+        var buildValue = NormalizeRepoUrl(BuildMetadata.UpdateRepoUrl);
+        if (IsUsableRepoUrl(buildValue))
         {
             return buildValue;
         }
 
         return string.Empty;
+    }
+
+    private static string NormalizeRepoUrl(string? value)
+    {
+        return (value ?? string.Empty).Trim().TrimEnd('/');
+    }
+
+    private static bool IsUsableRepoUrl(string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        if (value.Contains("your-org/your-repo", StringComparison.OrdinalIgnoreCase)
+            || value.Contains("example/example", StringComparison.OrdinalIgnoreCase)
+            || value.Contains("hdhminh/pdf-merge-service-updates", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return true;
     }
 
     private static UpdateChannel ResolveUpdateChannel(UpdateConfig? update)
