@@ -1287,9 +1287,15 @@ function resolveSignatureFieldToolDllPath() {
     "Release",
   ];
   const frameworkDirs = ["net8.0", "net9.0", "net10.0"];
-  const baseDirs = [__dirname, path.join(__dirname, "..", "..")];
+  const baseDirs = [
+    __dirname,
+    path.join(__dirname, ".."),
+    path.join(__dirname, "..", ".."),
+    process.cwd(),
+  ];
+  const uniqueBaseDirs = [...new Set(baseDirs.map((x) => path.resolve(x)))];
 
-  for (const baseDir of baseDirs) {
+  for (const baseDir of uniqueBaseDirs) {
     for (const framework of frameworkDirs) {
       const dllPath = path.join(
         baseDir,
