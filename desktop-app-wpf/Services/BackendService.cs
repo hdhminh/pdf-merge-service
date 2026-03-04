@@ -44,9 +44,17 @@ public sealed class BackendService : IBackendService
                 return Result.Fail(ErrorCode.NotFound, $"Không tìm thấy file backend: {backendEntry}");
             }
 
+            var nodeCommand = PathResolver.ResolveNodeCommand(backendRoot);
+            if (!PathResolver.IsCommandUsable(nodeCommand))
+            {
+                return Result.Fail(
+                    ErrorCode.NotFound,
+                    "Khong tim thay node runtime. Vui long cap nhat app ban moi nhat hoac cai Node.js, hoac dat NODE_CMD den node.exe.");
+            }
+
             var psi = new ProcessStartInfo
             {
-                FileName = "node",
+                FileName = nodeCommand,
                 Arguments = "index.js",
                 WorkingDirectory = backendRoot,
                 UseShellExecute = false,

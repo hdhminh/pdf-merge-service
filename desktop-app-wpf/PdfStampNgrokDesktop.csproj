@@ -50,6 +50,11 @@
       <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
     </None>
 
+    <None Include="..\bin\node-win-x64\**\*" Link="bin\node-win-x64\%(RecursiveDir)%(Filename)%(Extension)" Condition="Exists('..\bin\node-win-x64')">
+      <CopyToPublishDirectory>Always</CopyToPublishDirectory>
+      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+    </None>
+
     <None Include="..\bin\win32-x64\ngrok.exe" Link="bin\win32-x64\ngrok.exe" Condition="Exists('..\bin\win32-x64\ngrok.exe')">
       <CopyToPublishDirectory>Always</CopyToPublishDirectory>
       <ExcludeFromSingleFile>true</ExcludeFromSingleFile>

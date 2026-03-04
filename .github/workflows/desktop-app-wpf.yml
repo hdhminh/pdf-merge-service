@@ -34,6 +34,42 @@ jobs:
       - name: Install backend dependencies
         run: npm ci --omit=dev
 
+      - name: Ensure bundled Node runtime
+        shell: pwsh
+        run: |
+          $targetDir = "bin/node-win-x64"
+          $targetExe = Join-Path $targetDir "node.exe"
+          if (Test-Path $targetExe) {
+            Write-Host "Using existing Node runtime: $targetExe"
+            exit 0
+          }
+
+          $nodeVersion = (node -p "process.version").TrimStart('v')
+          if (-not $nodeVersion) {
+            throw "Cannot resolve Node version."
+          }
+
+          New-Item -ItemType Directory -Path $targetDir -Force | Out-Null
+          $zipPath = Join-Path $env:RUNNER_TEMP "node-v$nodeVersion-win-x64.zip"
+          $extractDir = Join-Path $env:RUNNER_TEMP "node-portable-win-x64"
+          $url = "https://nodejs.org/dist/v$nodeVersion/node-v$nodeVersion-win-x64.zip"
+
+          Invoke-WebRequest -Uri $url -OutFile $zipPath
+          if (Test-Path $extractDir) {
+            Remove-Item -Recurse -Force $extractDir
+          }
+          Expand-Archive -Path $zipPath -DestinationPath $extractDir -Force
+
+          $expandedRoot = Get-ChildItem -Path $extractDir -Directory | Select-Object -First 1
+          if ($null -eq $expandedRoot) {
+            throw "Cannot extract bundled Node runtime."
+          }
+
+          Copy-Item -Path (Join-Path $expandedRoot.FullName "*") -Destination $targetDir -Recurse -Force
+          if (-not (Test-Path $targetExe)) {
+            throw "node.exe was not found after extraction."
+          }
+
       - name: Ensure bundled ngrok
         shell: pwsh
         run: |
