@@ -1272,21 +1272,21 @@ function addSignatureFieldsForFoxit(
   ];
 }
 
-let signatureFieldToolDllPathCache;
+let signatureFieldToolExePathCache;
 
-function resolveSignatureFieldToolDllPath() {
-  if (signatureFieldToolDllPathCache !== undefined) {
-    return signatureFieldToolDllPathCache;
+function resolveSignatureFieldToolExePath() {
+  if (signatureFieldToolExePathCache !== undefined) {
+    return signatureFieldToolExePathCache;
   }
 
   const toolRelativeParts = [
     "tools",
     "signature-field-tool",
     "SignatureFieldTool",
-    "bin",
-    "Release",
+    "publish",
+    "win-x64",
+    "SignatureFieldTool.exe",
   ];
-  const frameworkDirs = ["net8.0", "net9.0", "net10.0"];
   const baseDirs = [
     __dirname,
     path.join(__dirname, ".."),
@@ -1296,22 +1296,15 @@ function resolveSignatureFieldToolDllPath() {
   const uniqueBaseDirs = [...new Set(baseDirs.map((x) => path.resolve(x)))];
 
   for (const baseDir of uniqueBaseDirs) {
-    for (const framework of frameworkDirs) {
-      const dllPath = path.join(
-        baseDir,
-        ...toolRelativeParts,
-        framework,
-        "SignatureFieldTool.dll",
-      );
-      if (fs.existsSync(dllPath)) {
-        signatureFieldToolDllPathCache = dllPath;
-        return signatureFieldToolDllPathCache;
-      }
+    const exePath = path.join(baseDir, ...toolRelativeParts);
+    if (fs.existsSync(exePath)) {
+      signatureFieldToolExePathCache = exePath;
+      return signatureFieldToolExePathCache;
     }
   }
 
-  signatureFieldToolDllPathCache = null;
-  return signatureFieldToolDllPathCache;
+  signatureFieldToolExePathCache = null;
+  return signatureFieldToolExePathCache;
 }
 
 function injectSignatureFieldsWithIText(
@@ -1323,16 +1316,11 @@ function injectSignatureFieldsWithIText(
     return pdfBytes;
   }
 
-  const dllPath = resolveSignatureFieldToolDllPath();
-  if (!dllPath) {
+  const toolExePath = resolveSignatureFieldToolExePath();
+  if (!toolExePath) {
     throw new Error(
-      "SignatureFieldTool.dll not found. Build tools/signature-field-tool/SignatureFieldTool first.",
+      "SignatureFieldTool.exe not found. Build/publish tools/signature-field-tool/SignatureFieldTool first.",
     );
-  }
-
-  const dotnetCheck = spawnSync("dotnet", ["--version"], { encoding: "utf8" });
-  if (dotnetCheck.error || dotnetCheck.status !== 0) {
-    throw new Error("dotnet runtime is required to inject signature fields.");
   }
 
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "pdf-sigfields-"));
@@ -1366,7 +1354,7 @@ function injectSignatureFieldsWithIText(
     };
     fs.writeFileSync(jobPath, JSON.stringify(job), "utf8");
 
-    const runResult = spawnSync("dotnet", [dllPath, "--job", jobPath], {
+    const runResult = spawnSync(toolExePath, ["--job", jobPath], {
       encoding: "utf8",
       maxBuffer: 8 * 1024 * 1024,
     });

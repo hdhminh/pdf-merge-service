@@ -8,6 +8,7 @@ internal static class PathResolver
     private const string BackendSubDirectoryName = "backend";
     private const string NodeExeFileName = "node.exe";
     private const string NgrokExeFileName = "ngrok.exe";
+    private const string SignatureFieldToolExeFileName = "SignatureFieldTool.exe";
 
     public static string ResolveRepoRoot()
     {
@@ -159,6 +160,25 @@ internal static class PathResolver
         };
 
         return candidates.Where(static x => !string.IsNullOrWhiteSpace(x)).FirstOrDefault(File.Exists) ?? "ngrok";
+    }
+
+    public static string ResolveSignatureFieldToolCommand(string backendRoot)
+    {
+        var fromEnv = Environment.GetEnvironmentVariable("SIGNATURE_FIELD_TOOL_CMD")?.Trim();
+        if (!string.IsNullOrWhiteSpace(fromEnv) && File.Exists(fromEnv))
+        {
+            return fromEnv;
+        }
+
+        var appRoot = ResolveAppRoot(backendRoot);
+        var candidates = new[]
+        {
+            Path.Combine(appRoot, "tools", "signature-field-tool", "SignatureFieldTool", "publish", "win-x64", SignatureFieldToolExeFileName),
+            Path.Combine(AppContext.BaseDirectory, "tools", "signature-field-tool", "SignatureFieldTool", "publish", "win-x64", SignatureFieldToolExeFileName),
+            Path.Combine(backendRoot, "tools", "signature-field-tool", "SignatureFieldTool", "publish", "win-x64", SignatureFieldToolExeFileName),
+        };
+
+        return candidates.FirstOrDefault(File.Exists) ?? string.Empty;
     }
 
     public static bool IsCommandUsable(string command)

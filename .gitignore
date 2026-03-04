@@ -9,6 +9,7 @@ merged_from_server.pdf
 desktop-app-wpf/publish/
 desktop-app-wpf.tests/bin/
 desktop-app-wpf.tests/obj/
+tools/signature-field-tool/SignatureFieldTool/publish/
 
 # Logs / local app data
 *.log

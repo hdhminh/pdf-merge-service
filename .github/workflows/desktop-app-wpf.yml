@@ -98,6 +98,15 @@ jobs:
       - name: Build signature-field tool
         run: dotnet build tools/signature-field-tool/SignatureFieldTool/SignatureFieldTool.csproj -c Release
 
+      - name: Publish signature-field tool (self-contained)
+        run: |
+          dotnet publish tools/signature-field-tool/SignatureFieldTool/SignatureFieldTool.csproj `
+            -c Release `
+            -r win-x64 `
+            --self-contained true `
+            -p:PublishSingleFile=false `
+            -o tools/signature-field-tool/SignatureFieldTool/publish/win-x64
+
       - name: Test
         run: dotnet test pdf-merge-service.sln -c Release --no-build
 

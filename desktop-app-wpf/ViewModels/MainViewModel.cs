@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.IO;
 using System.Reflection;
 using System.Windows;
 using System.Windows.Input;
@@ -284,6 +285,13 @@ public sealed class MainViewModel : ObservableObject
         SelectedUpdateChannel = _config.Update.Channel;
         await _tokenStoreService.SaveAsync(_config);
         RefreshProfiles();
+
+        var preflight = ValidateRuntimeDependencies();
+        if (!preflight.IsSuccess)
+        {
+            SetUiError(preflight.Message, preflight.Code);
+            return;
+        }
 
         _refreshTimer.Start();
         RealtimeState = "Đã sẵn sàng";
@@ -988,6 +996,54 @@ public sealed class MainViewModel : ObservableObject
         {
             Log.Warning(ex, "Unexpected background auto-update failure.");
         }
+    }
+
+    private Result ValidateRuntimeDependencies()
+    {
+        // Skip filesystem preflight for test doubles.
+        if (_backendService is not BackendService || _ngrokService is not NgrokService)
+        {
+            return Result.Ok();
+        }
+
+        string backendRoot;
+        try
+        {
+            backendRoot = PathResolver.ResolveRepoRoot();
+        }
+        catch (Exception ex)
+        {
+            return Result.Fail(ErrorCode.NotFound, $"Thieu backend runtime: {ex.Message}");
+        }
+
+        var issues = new List<string>();
+
+        var nodeCommand = PathResolver.ResolveNodeCommand(backendRoot);
+        if (!PathResolver.IsCommandUsable(nodeCommand))
+        {
+            issues.Add("thieu Node runtime");
+        }
+
+        var ngrokCommand = PathResolver.ResolveNgrokCommand(backendRoot);
+        if (!PathResolver.IsCommandUsable(ngrokCommand))
+        {
+            issues.Add("thieu ngrok.exe");
+        }
+
+        var signatureToolCommand = PathResolver.ResolveSignatureFieldToolCommand(backendRoot);
+        if (string.IsNullOrWhiteSpace(signatureToolCommand) || !File.Exists(signatureToolCommand))
+        {
+            issues.Add("thieu SignatureFieldTool.exe");
+        }
+
+        if (issues.Count == 0)
+        {
+            return Result.Ok();
+        }
+
+        return Result.Fail(
+            ErrorCode.NotFound,
+            $"Runtime chua day du ({string.Join(", ", issues)}). Vui long cap nhat app ban moi nhat.");
     }
 
     private void MonitorProcessMemory()

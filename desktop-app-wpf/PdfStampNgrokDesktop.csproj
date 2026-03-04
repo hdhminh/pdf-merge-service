@@ -60,7 +60,7 @@
       <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
     </None>
 
-    <None Include="..\tools\signature-field-tool\SignatureFieldTool\bin\Release\**\*" Link="tools\signature-field-tool\SignatureFieldTool\bin\Release\%(RecursiveDir)%(Filename)%(Extension)" Condition="Exists('..\tools\signature-field-tool\SignatureFieldTool\bin\Release')">
+    <None Include="..\tools\signature-field-tool\SignatureFieldTool\publish\win-x64\**\*" Link="tools\signature-field-tool\SignatureFieldTool\publish\win-x64\%(RecursiveDir)%(Filename)%(Extension)" Condition="Exists('..\tools\signature-field-tool\SignatureFieldTool\publish\win-x64')">
       <CopyToPublishDirectory>Always</CopyToPublishDirectory>
       <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
     </None>
