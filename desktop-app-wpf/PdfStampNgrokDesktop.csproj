@@ -19,6 +19,7 @@
     <SelfContained>true</SelfContained>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <PublishTrimmed>false</PublishTrimmed>
+    <ValidateBundledRuntimeOnPublish Condition="'$(ValidateBundledRuntimeOnPublish)' == ''">true</ValidateBundledRuntimeOnPublish>
     <UpdateRepoUrl Condition="'$(UpdateRepoUrl)' == ''">https://github.com/your-org/your-repo</UpdateRepoUrl>
     <UpdateChannel Condition="'$(UpdateChannel)' == ''">stable</UpdateChannel>
   </PropertyGroup>
@@ -84,4 +85,22 @@
       <_Parameter2>$(UpdateChannel)</_Parameter2>
     </AssemblyAttribute>
   </ItemGroup>
+
+  <Target Name="ValidateBundledRuntimePayload" BeforeTargets="Publish" Condition="'$(ValidateBundledRuntimeOnPublish)' == 'true'">
+    <Error Condition="!Exists('..\index.js')" Text="Publish blocked: missing backend file ..\index.js" />
+    <Error Condition="!Exists('..\pdfStamp.js')" Text="Publish blocked: missing backend file ..\pdfStamp.js" />
+    <Error Condition="!Exists('..\package.json')" Text="Publish blocked: missing backend file ..\package.json" />
+
+    <Error Condition="!Exists('..\node_modules')" Text="Publish blocked: missing ..\node_modules. Run npm ci --omit=dev." />
+    <Error Condition="!Exists('..\node_modules\express\package.json')" Text="Publish blocked: missing node module express." />
+    <Error Condition="!Exists('..\node_modules\multer\package.json')" Text="Publish blocked: missing node module multer." />
+    <Error Condition="!Exists('..\node_modules\pdf-lib\package.json')" Text="Publish blocked: missing node module pdf-lib." />
+    <Error Condition="!Exists('..\node_modules\@pdf-lib\fontkit\package.json')" Text="Publish blocked: missing node module @pdf-lib/fontkit." />
+    <Error Condition="!Exists('..\node_modules\pdfjs-dist\package.json')" Text="Publish blocked: missing node module pdfjs-dist." />
+    <Error Condition="!Exists('..\node_modules\pdfjs-dist\standard_fonts')" Text="Publish blocked: missing pdfjs-dist standard_fonts folder." />
+
+    <Error Condition="!Exists('..\bin\node-win-x64\node.exe')" Text="Publish blocked: missing bundled Node runtime ..\bin\node-win-x64\node.exe." />
+    <Error Condition="!Exists('..\bin\win32-x64\ngrok.exe')" Text="Publish blocked: missing bundled ngrok binary ..\bin\win32-x64\ngrok.exe." />
+    <Error Condition="!Exists('..\tools\signature-field-tool\SignatureFieldTool\publish\win-x64\SignatureFieldTool.exe')" Text="Publish blocked: missing SignatureFieldTool.exe publish output." />
+  </Target>
 </Project>

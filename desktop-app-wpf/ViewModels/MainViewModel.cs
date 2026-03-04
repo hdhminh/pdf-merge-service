@@ -1016,25 +1016,7 @@ public sealed class MainViewModel : ObservableObject
             return Result.Fail(ErrorCode.NotFound, $"Thieu backend runtime: {ex.Message}");
         }
 
-        var issues = new List<string>();
-
-        var nodeCommand = PathResolver.ResolveNodeCommand(backendRoot);
-        if (!PathResolver.IsCommandUsable(nodeCommand))
-        {
-            issues.Add("thieu Node runtime");
-        }
-
-        var ngrokCommand = PathResolver.ResolveNgrokCommand(backendRoot);
-        if (!PathResolver.IsCommandUsable(ngrokCommand))
-        {
-            issues.Add("thieu ngrok.exe");
-        }
-
-        var signatureToolCommand = PathResolver.ResolveSignatureFieldToolCommand(backendRoot);
-        if (string.IsNullOrWhiteSpace(signatureToolCommand) || !File.Exists(signatureToolCommand))
-        {
-            issues.Add("thieu SignatureFieldTool.exe");
-        }
+        var issues = PathResolver.CollectRuntimeIssues(backendRoot);
 
         if (issues.Count == 0)
         {

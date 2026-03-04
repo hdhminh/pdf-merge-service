@@ -51,10 +51,22 @@ jobs:
 
           New-Item -ItemType Directory -Path $targetDir -Force | Out-Null
           $zipPath = Join-Path $env:RUNNER_TEMP "node-v$nodeVersion-win-x64.zip"
+          $shaPath = Join-Path $env:RUNNER_TEMP "SHASUMS256.txt"
           $extractDir = Join-Path $env:RUNNER_TEMP "node-portable-win-x64"
           $url = "https://nodejs.org/dist/v$nodeVersion/node-v$nodeVersion-win-x64.zip"
 
           Invoke-WebRequest -Uri $url -OutFile $zipPath
+          Invoke-WebRequest -Uri "https://nodejs.org/dist/v$nodeVersion/SHASUMS256.txt" -OutFile $shaPath
+          $expectedLine = Get-Content $shaPath | Where-Object { $_ -match " node-v$nodeVersion-win-x64.zip$" } | Select-Object -First 1
+          if (-not $expectedLine) {
+            throw "Cannot resolve Node checksum from SHASUMS256.txt."
+          }
+          $expectedHash = ($expectedLine -split "\s+")[0].Trim().ToLowerInvariant()
+          $actualHash = (Get-FileHash -Path $zipPath -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actualHash -ne $expectedHash) {
+            throw "Node runtime checksum mismatch. expected=$expectedHash actual=$actualHash"
+          }
+
           if (Test-Path $extractDir) {
             Remove-Item -Recurse -Force $extractDir
           }
@@ -82,7 +94,17 @@ jobs:
 
           New-Item -ItemType Directory -Path $targetDir -Force | Out-Null
           $zipPath = Join-Path $env:RUNNER_TEMP "ngrok-v3-windows-amd64.zip"
+          $expectedHash = "${{ vars.NGROK_WIN_AMD64_SHA256 }}".Trim().ToLowerInvariant()
+          if (-not $expectedHash) {
+            $expectedHash = "2cf6f8bce5e642b26f147c46423d4ce7f70528450038201eb114519162a98281"
+          }
+
           Invoke-WebRequest -Uri "https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip" -OutFile $zipPath
+          $actualHash = (Get-FileHash -Path $zipPath -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actualHash -ne $expectedHash) {
+            throw "ngrok zip checksum mismatch. expected=$expectedHash actual=$actualHash. Update NGROK_WIN_AMD64_SHA256 after verifying vendor binary."
+          }
+
           Expand-Archive -Path $zipPath -DestinationPath $targetDir -Force
 
           if (-not (Test-Path $targetExe)) {

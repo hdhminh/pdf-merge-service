@@ -5,6 +5,8 @@ namespace PdfStampNgrokDesktop.Services;
 internal static class PathResolver
 {
     private const string BackendEntryFileName = "index.js";
+    private const string BackendStampFileName = "pdfStamp.js";
+    private const string BackendPackageFileName = "package.json";
     private const string BackendSubDirectoryName = "backend";
     private const string NodeExeFileName = "node.exe";
     private const string NgrokExeFileName = "ngrok.exe";
@@ -240,6 +242,68 @@ internal static class PathResolver
         }
 
         return false;
+    }
+
+    public static IReadOnlyList<string> CollectRuntimeIssues(string backendRoot)
+    {
+        var issues = new List<string>();
+        if (string.IsNullOrWhiteSpace(backendRoot) || !Directory.Exists(backendRoot))
+        {
+            issues.Add("khong tim thay thu muc backend");
+            return issues;
+        }
+
+        AddMissingFileIssue(issues, Path.Combine(backendRoot, BackendEntryFileName), "thieu backend/index.js");
+        AddMissingFileIssue(issues, Path.Combine(backendRoot, BackendStampFileName), "thieu backend/pdfStamp.js");
+        AddMissingFileIssue(issues, Path.Combine(backendRoot, BackendPackageFileName), "thieu backend/package.json");
+
+        var nodeModulesRoot = Path.Combine(backendRoot, "node_modules");
+        if (!Directory.Exists(nodeModulesRoot))
+        {
+            issues.Add("thieu backend/node_modules");
+        }
+        else
+        {
+            AddMissingFileIssue(issues, Path.Combine(nodeModulesRoot, "express", "package.json"), "thieu module express");
+            AddMissingFileIssue(issues, Path.Combine(nodeModulesRoot, "multer", "package.json"), "thieu module multer");
+            AddMissingFileIssue(issues, Path.Combine(nodeModulesRoot, "pdf-lib", "package.json"), "thieu module pdf-lib");
+            AddMissingFileIssue(issues, Path.Combine(nodeModulesRoot, "@pdf-lib", "fontkit", "package.json"), "thieu module @pdf-lib/fontkit");
+            AddMissingFileIssue(issues, Path.Combine(nodeModulesRoot, "pdfjs-dist", "package.json"), "thieu module pdfjs-dist");
+
+            var standardFontsDir = Path.Combine(nodeModulesRoot, "pdfjs-dist", "standard_fonts");
+            if (!Directory.Exists(standardFontsDir))
+            {
+                issues.Add("thieu pdfjs standard_fonts");
+            }
+        }
+
+        var nodeCommand = ResolveNodeCommand(backendRoot);
+        if (!IsCommandUsable(nodeCommand))
+        {
+            issues.Add("thieu Node runtime");
+        }
+
+        var ngrokCommand = ResolveNgrokCommand(backendRoot);
+        if (!IsCommandUsable(ngrokCommand))
+        {
+            issues.Add("thieu ngrok.exe");
+        }
+
+        var signatureToolCommand = ResolveSignatureFieldToolCommand(backendRoot);
+        if (string.IsNullOrWhiteSpace(signatureToolCommand) || !File.Exists(signatureToolCommand))
+        {
+            issues.Add("thieu SignatureFieldTool.exe");
+        }
+
+        return issues;
+    }
+
+    private static void AddMissingFileIssue(ICollection<string> issues, string filePath, string issue)
+    {
+        if (!File.Exists(filePath))
+        {
+            issues.Add(issue);
+        }
     }
 
     private static string ResolveAppRoot(string backendRoot)
