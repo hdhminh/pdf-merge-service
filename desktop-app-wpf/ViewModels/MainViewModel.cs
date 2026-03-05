@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
+using System.IO.Compression;
 using System.Reflection;
 using System.Windows;
 using System.Windows.Input;
@@ -76,6 +77,8 @@ public sealed class MainViewModel : ObservableObject
         UnlockCommand = new RelayCommand(UnlockSession, () => IsSessionLocked);
         RestoreBackupCommand = new AsyncRelayCommand(RestoreBackupAsync, () => !_busy);
         CheckUpdateCommand = new AsyncRelayCommand(CheckUpdateAsync, () => !_busy);
+        OpenGuideCommand = new RelayCommand(OpenGuide, () => !_busy);
+        PrepareSupportLogCommand = new RelayCommand(PrepareSupportLogBundle, () => !_busy);
 
         UpdateChannels = Enum.GetValues<UpdateChannel>();
 
@@ -137,6 +140,10 @@ public sealed class MainViewModel : ObservableObject
     public ICommand RestoreBackupCommand { get; }
 
     public ICommand CheckUpdateCommand { get; }
+
+    public ICommand OpenGuideCommand { get; }
+
+    public ICommand PrepareSupportLogCommand { get; }
 
     public IReadOnlyList<UpdateChannel> UpdateChannels { get; }
 
@@ -629,6 +636,95 @@ public sealed class MainViewModel : ObservableObject
         }
     }
 
+    private void OpenGuide()
+    {
+        try
+        {
+            var guidePath = Path.Combine(AppContext.BaseDirectory, "docs", "HDSD.txt");
+            if (!File.Exists(guidePath))
+            {
+                SetUiError("Khong tim thay tai lieu huong dan su dung (docs\\HDSD.txt).", ErrorCode.NotFound);
+                return;
+            }
+
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = guidePath,
+                UseShellExecute = true,
+            });
+
+            StatusMessage = "Da mo huong dan su dung.";
+            RealtimeState = "Da san sang";
+            NotifyUserActivity();
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Open guide failed.");
+            SetUiError($"Khong mo duoc HDSD: {ex.Message}", ErrorCode.IoFailure);
+        }
+    }
+
+    private void PrepareSupportLogBundle()
+    {
+        try
+        {
+            var logDir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "PdfStampNgrokDesktop",
+                "logs");
+
+            if (!Directory.Exists(logDir))
+            {
+                SetUiError("Chua co thu muc log de gui ho tro.", ErrorCode.NotFound);
+                return;
+            }
+
+            var logs = Directory.GetFiles(logDir, "*.log")
+                .OrderByDescending(File.GetLastWriteTimeUtc)
+                .Take(10)
+                .ToList();
+            if (logs.Count == 0)
+            {
+                SetUiError("Chua co file log de gui ho tro.", ErrorCode.NotFound);
+                return;
+            }
+
+            var outDir = Path.Combine(Path.GetTempPath(), "PdfStampNgrokDesktop", "support");
+            Directory.CreateDirectory(outDir);
+
+            var zipPath = Path.Combine(outDir, $"PdfStampNgrokDesktop-logs-{DateTime.Now:yyyyMMdd-HHmmss}.zip");
+            if (File.Exists(zipPath))
+            {
+                File.Delete(zipPath);
+            }
+
+            using (var archive = ZipFile.Open(zipPath, ZipArchiveMode.Create))
+            {
+                foreach (var file in logs)
+                {
+                    archive.CreateEntryFromFile(file, Path.GetFileName(file), CompressionLevel.Optimal);
+                }
+            }
+
+            Clipboard.SetText(zipPath);
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "explorer.exe",
+                Arguments = $"/select,\"{zipPath}\"",
+                UseShellExecute = true,
+            });
+
+            StatusMessage = "Da dong goi log va copy duong dan. Gui file zip nay cho ho tro.";
+            RealtimeState = "Da san sang";
+            NotifyUserActivity();
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "PrepareSupportLogBundle failed.");
+            SetUiError($"Khong dong goi duoc log: {ex.Message}", ErrorCode.IoFailure);
+        }
+    }
+
     private async Task RestoreBackupAsync()
     {
         IsBusy = true;
@@ -970,6 +1066,16 @@ public sealed class MainViewModel : ObservableObject
         if (CheckUpdateCommand is AsyncRelayCommand checkUpdate)
         {
             checkUpdate.NotifyCanExecuteChanged();
+        }
+
+        if (OpenGuideCommand is RelayCommand openGuide)
+        {
+            openGuide.NotifyCanExecuteChanged();
+        }
+
+        if (PrepareSupportLogCommand is RelayCommand prepareSupportLog)
+        {
+            prepareSupportLog.NotifyCanExecuteChanged();
         }
     }
 

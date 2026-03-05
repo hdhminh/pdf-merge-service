@@ -18,6 +18,7 @@
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>true</SelfContained>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
     <PublishTrimmed>false</PublishTrimmed>
     <ValidateBundledRuntimeOnPublish Condition="'$(ValidateBundledRuntimeOnPublish)' == ''">true</ValidateBundledRuntimeOnPublish>
     <UpdateRepoUrl Condition="'$(UpdateRepoUrl)' == ''">https://github.com/your-org/your-repo</UpdateRepoUrl>
@@ -31,6 +32,12 @@
 
   <ItemGroup>
     <None Include="support-contact.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>Always</CopyToPublishDirectory>
+      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+    </None>
+
+    <None Include="docs\HDSD.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>Always</CopyToPublishDirectory>
       <ExcludeFromSingleFile>true</ExcludeFromSingleFile>

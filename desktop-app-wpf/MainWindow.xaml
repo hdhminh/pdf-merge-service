@@ -247,6 +247,15 @@
             <StackPanel Margin="8,6,8,8">
                 <TextBlock Text="{Binding RealtimeState}" FontWeight="SemiBold" Foreground="{StaticResource BrushPrimaryText}" />
                 <TextBlock Text="{Binding StatusMessage}" Margin="0,4,0,0" TextWrapping="Wrap" />
+                <WrapPanel Margin="0,10,0,0">
+                    <Button Content="HDSD"
+                            MinWidth="96"
+                            Margin="0,0,8,0"
+                            Command="{Binding OpenGuideCommand}" />
+                    <Button Content="Gui log ho tro"
+                            MinWidth="126"
+                            Command="{Binding PrepareSupportLogCommand}" />
+                </WrapPanel>
             </StackPanel>
         </GroupBox>
     </Grid>

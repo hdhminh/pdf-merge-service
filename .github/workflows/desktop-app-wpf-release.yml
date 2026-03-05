@@ -91,6 +91,35 @@ jobs:
       - name: Install backend dependencies
         run: npm ci --omit=dev
 
+      - name: Prune backend dependency payload
+        shell: pwsh
+        run: |
+          $root = "node_modules"
+          if (-not (Test-Path $root)) {
+            throw "node_modules not found after npm ci."
+          }
+
+          function Get-DirSizeMb([string]$path) {
+            $sum = (Get-ChildItem -Path $path -Recurse -File -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum
+            if ($null -eq $sum) { return 0.0 }
+            return [math]::Round($sum / 1MB, 2)
+          }
+
+          $beforeMb = Get-DirSizeMb $root
+          $pruneDirNames = @("test", "tests", "__tests__", "doc", "docs", "example", "examples", "benchmark", "benchmarks", ".github", ".vscode", ".idea", "coverage")
+          Get-ChildItem -Path $root -Directory -Recurse -Force -ErrorAction SilentlyContinue |
+            Where-Object { $pruneDirNames -contains $_.Name.ToLowerInvariant() } |
+            ForEach-Object { Remove-Item -Path $_.FullName -Recurse -Force -ErrorAction SilentlyContinue }
+
+          Get-ChildItem -Path $root -File -Recurse -Filter "*.map" -ErrorAction SilentlyContinue |
+            Remove-Item -Force -ErrorAction SilentlyContinue
+          Get-ChildItem -Path $root -File -Recurse -Filter "*.tsbuildinfo" -ErrorAction SilentlyContinue |
+            Remove-Item -Force -ErrorAction SilentlyContinue
+
+          $afterMb = Get-DirSizeMb $root
+          Write-Host "node_modules size before prune: $beforeMb MB"
+          Write-Host "node_modules size after prune:  $afterMb MB"
+
       - name: Ensure bundled Node runtime
         shell: pwsh
         run: |
@@ -191,7 +220,10 @@ jobs:
             -c Release `
             -r win-x64 `
             --self-contained true `
-            -p:PublishSingleFile=false `
+            -p:PublishSingleFile=true `
+            -p:EnableCompressionInSingleFile=true `
+            -p:DebugType=None `
+            -p:DebugSymbols=false `
             -o tools/signature-field-tool/SignatureFieldTool/publish/win-x64
 
       - name: Test
@@ -205,10 +237,27 @@ jobs:
             -p:PublishSingleFile=true `
             -p:SelfContained=true `
             -p:IncludeNativeLibrariesForSelfExtract=true `
+            -p:EnableCompressionInSingleFile=true `
+            -p:DebugType=None `
+            -p:DebugSymbols=false `
             -p:Version=${{ steps.meta.outputs.version }} `
             -p:UpdateRepoUrl=${{ steps.meta.outputs.feed_repo_url }} `
             -p:UpdateChannel=${{ steps.meta.outputs.channel }} `
             -o artifacts/publish/win-x64
+
+      - name: Smoke test packaged app/runtime
+        shell: pwsh
+        run: |
+          $appExe = "artifacts/publish/win-x64/PdfStampNgrokDesktop.exe"
+          if (-not (Test-Path $appExe)) {
+            throw "Smoke test blocked: app exe not found at $appExe"
+          }
+
+          $env:SMOKE_TEST_PORT = "39030"
+          $process = Start-Process -FilePath $appExe -ArgumentList "--smoke-test" -Wait -PassThru
+          if ($process.ExitCode -ne 0) {
+            throw "Smoke test failed with exit code $($process.ExitCode)"
+          }
 
       - name: Pack Velopack release
         run: |
