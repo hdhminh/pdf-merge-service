@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Input;
+using PdfStampNgrokDesktop.Helpers;
 using PdfStampNgrokDesktop.ViewModels;
 
 namespace PdfStampNgrokDesktop;
@@ -127,12 +128,12 @@ public partial class MainWindow : Window
         {
             var remaining = _developerPanelLockedUntilUtc - nowUtc;
             var remainingText = remaining.TotalSeconds >= 60
-                ? $"{Math.Ceiling(remaining.TotalMinutes):0} phút"
-                : $"{Math.Ceiling(remaining.TotalSeconds):0} giây";
+                ? UiText.Format("DevPromptMinutesTemplate", "{0} phut", Math.Ceiling(remaining.TotalMinutes).ToString("0"))
+                : UiText.Format("DevPromptSecondsTemplate", "{0} giay", Math.Ceiling(remaining.TotalSeconds).ToString("0"));
 
             MessageBox.Show(
-                $"Tính năng mở bảng ẩn đang tạm khóa. Vui lòng thử lại sau {remainingText}.",
-                "Đang tạm khóa",
+                UiText.Format("DevPromptLockedMessageTemplate", "Tính năng mở bảng ẩn đang tạm khóa. Vui lòng thử lại sau {0}.", remainingText),
+                UiText.Get("DevPromptLockedTitle", "Đang tạm khóa"),
                 MessageBoxButton.OK,
                 MessageBoxImage.Warning);
             return;
@@ -164,8 +165,12 @@ public partial class MainWindow : Window
                 SaveDeveloperPanelGuardState();
 
                 MessageBox.Show(
-                    $"Sai mật mã quá {MaxAttemptsBeforeLock} lần. Tạm khóa {Math.Ceiling(lockDuration.TotalSeconds):0} giây.",
-                    "Đang tạm khóa",
+                    UiText.Format(
+                        "DevPromptLockTriggeredMessageTemplate",
+                        "Sai mật mã quá {0} lần. Tạm khóa {1} giây.",
+                        MaxAttemptsBeforeLock,
+                        Math.Ceiling(lockDuration.TotalSeconds).ToString("0")),
+                    UiText.Get("DevPromptLockedTitle", "Đang tạm khóa"),
                     MessageBoxButton.OK,
                     MessageBoxImage.Warning);
                 return;
@@ -175,8 +180,8 @@ public partial class MainWindow : Window
 
             var remainingAttempts = MaxAttemptsBeforeLock - _developerPanelFailedAttempts;
             MessageBox.Show(
-                $"Sai mật mã. Còn {remainingAttempts} lần thử trước khi bị tạm khóa.",
-                "Sai mật mã",
+                UiText.Format("DevPromptWrongMessageTemplate", "Sai mật mã. Còn {0} lần thử trước khi bị tạm khóa.", remainingAttempts),
+                UiText.Get("DevPromptWrongTitle", "Sai mật mã"),
                 MessageBoxButton.OK,
                 MessageBoxImage.Warning);
             return;

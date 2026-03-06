@@ -52,7 +52,7 @@
                     Content="?"
                     Padding="0"
                     VerticalAlignment="Center"
-                    ToolTip="Hướng dẫn từng bước"
+                    ToolTip="{StaticResource HelpTooltip}"
                     Click="HelpButton_Click">
                 <Button.Template>
                     <ControlTemplate TargetType="Button">
@@ -100,11 +100,11 @@
                 CornerRadius="3"
                 Visibility="{Binding CanShowLockBanner, Converter={StaticResource BooleanToVisibilityConverter}}">
             <DockPanel LastChildFill="False">
-                <TextBlock Text="Phiên đang khóa do không thao tác."
+                <TextBlock Text="{StaticResource LockBannerText}"
                            Foreground="#684F1D"
                            VerticalAlignment="Center"
                            DockPanel.Dock="Left" />
-                <Button Content="Mở khóa phiên"
+                <Button Content="{StaticResource UnlockSessionButton}"
                         Command="{Binding UnlockCommand}"
                         Height="30"
                         MinWidth="110"
@@ -112,7 +112,7 @@
             </DockPanel>
         </Border>
 
-        <GroupBox Grid.Row="2" Header="Token">
+        <GroupBox Grid.Row="2" Header="{StaticResource TokenGroupHeader}">
             <Grid Margin="4">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
@@ -138,12 +138,12 @@
                               SelectedValue="{Binding SelectedProfileId, UpdateSourceTrigger=PropertyChanged}" />
 
                     <Button Grid.Column="2"
-                            Content="Dùng"
+                            Content="{StaticResource UseButton}"
                             MinWidth="72"
                             Command="{Binding UseTokenCommand}" />
 
                     <Button Grid.Column="4"
-                            Content="Xóa"
+                            Content="{StaticResource DeleteButton}"
                             Foreground="#B42318"
                             BorderBrush="#F0A8A4"
                             MinWidth="60"
@@ -160,12 +160,12 @@
                     <Grid Grid.Column="0">
                         <TextBox x:Name="TokenNameTextBox"
                                  Text="{Binding NewProfileName, UpdateSourceTrigger=PropertyChanged}"
-                                 ToolTip="Tên profile (vd: Team A)" />
+                                 ToolTip="{StaticResource TokenProfileTooltip}" />
                         <TextBlock Margin="10,0,0,0"
                                    Foreground="#8A9AA7"
                                    VerticalAlignment="Center"
                                    IsHitTestVisible="False"
-                                   Text="Tên profile (vd: Team A)">
+                                   Text="{StaticResource TokenProfilePlaceholder}">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock">
                                     <Setter Property="Visibility" Value="Collapsed" />
@@ -189,7 +189,7 @@
                                    Foreground="#8A9AA7"
                                    VerticalAlignment="Center"
                                    IsHitTestVisible="False"
-                                   Text="Nhập AuthToken">
+                                   Text="{StaticResource AuthTokenPlaceholder}">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock">
                                     <Setter Property="Visibility" Value="Collapsed" />
@@ -205,18 +205,18 @@
                 </Grid>
 
                 <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right">
-                    <Button Content="Thêm token"
+                    <Button Content="{StaticResource AddTokenButton}"
                             MinWidth="98"
                             Margin="0,0,6,0"
                             Command="{Binding AddTokenCommand}" />
-                    <Button Content="Hiện/Ẩn"
+                    <Button Content="{StaticResource RevealToggleButton}"
                             MinWidth="84"
                             Command="{Binding ToggleRevealCommand}" />
                 </StackPanel>
             </Grid>
         </GroupBox>
 
-        <GroupBox Grid.Row="3" Header="Link">
+        <GroupBox Grid.Row="3" Header="{StaticResource LinkGroupHeader}">
             <Grid Margin="4">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
@@ -239,7 +239,7 @@
                                    Foreground="#8A9AA7"
                                    VerticalAlignment="Center"
                                    IsHitTestVisible="False"
-                                   Text="Link sẽ hiện ở đây sau khi bấm 'Tạo link'">
+                                   Text="{StaticResource LinkPlaceholder}">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock">
                                     <Setter Property="Visibility" Value="Collapsed" />
@@ -266,18 +266,18 @@
                     </Grid.ColumnDefinitions>
 
                     <Button Grid.Column="0"
-                            Content="Tạo link"
+                            Content="{StaticResource CreateLinkButton}"
                             MinWidth="104"
                             Command="{Binding CreateLinkCommand}" />
                     <Button Grid.Column="2"
-                            Content="Hủy link"
+                            Content="{StaticResource CancelLinkButton}"
                             MinWidth="92"
                             Command="{Binding CancelLinkCommand}" />
                 </Grid>
             </Grid>
         </GroupBox>
 
-        <GroupBox Grid.Row="4" Header="Google Sheet">
+        <GroupBox Grid.Row="4" Header="{StaticResource GoogleSheetGroupHeader}">
             <GroupBox.Style>
                 <Style TargetType="GroupBox">
                     <Setter Property="Visibility" Value="Collapsed" />
@@ -306,12 +306,12 @@
                     <Grid Grid.Column="0">
                         <TextBox x:Name="GoogleSheetIdTextBox"
                                  Text="{Binding GoogleSheetId, UpdateSourceTrigger=PropertyChanged}"
-                                 ToolTip="Chỉ nhập Google Sheet ID (không cần dán full link)" />
+                                 ToolTip="{StaticResource GoogleSheetIdTooltip}" />
                         <TextBlock Margin="10,0,0,0"
                                    Foreground="#8A9AA7"
                                    VerticalAlignment="Center"
                                    IsHitTestVisible="False"
-                                   Text="Google Sheet ID (không cần link)">
+                                   Text="{StaticResource GoogleSheetIdPlaceholder}">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock">
                                     <Setter Property="Visibility" Value="Collapsed" />
@@ -328,12 +328,12 @@
                     <Grid Grid.Column="2">
                         <TextBox x:Name="GoogleSheetCellTextBox"
                                  Text="{Binding GoogleSheetTargetCell, UpdateSourceTrigger=PropertyChanged}"
-                                 ToolTip="Ô đích để dán endpoint (vd: CONFIG!B32)" />
+                                 ToolTip="{StaticResource GoogleSheetTargetCellTooltip}" />
                         <TextBlock Margin="10,0,0,0"
                                    Foreground="#8A9AA7"
                                    VerticalAlignment="Center"
                                    IsHitTestVisible="False"
-                                   Text="Ô đích (vd: CONFIG!B32)">
+                                   Text="{StaticResource GoogleSheetTargetCellPlaceholder}">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock">
                                     <Setter Property="Visibility" Value="Collapsed" />
@@ -351,12 +351,12 @@
                 <Grid Grid.Row="2">
                     <TextBox x:Name="GoogleSheetWebhookTextBox"
                              Text="{Binding GoogleSheetWebhookUrl, UpdateSourceTrigger=PropertyChanged}"
-                             ToolTip="Webhook URL Apps Script dạng .../exec" />
+                             ToolTip="{StaticResource GoogleSheetWebhookTooltip}" />
                     <TextBlock Margin="10,0,0,0"
                                Foreground="#8A9AA7"
                                VerticalAlignment="Center"
                                IsHitTestVisible="False"
-                               Text="Webhook URL (vd: https://script.google.com/macros/s/.../exec)">
+                               Text="{StaticResource GoogleSheetWebhookPlaceholder}">
                         <TextBlock.Style>
                             <Style TargetType="TextBlock">
                                 <Setter Property="Visibility" Value="Collapsed" />
@@ -373,11 +373,11 @@
                 <TextBlock Grid.Row="4"
                            Foreground="#667085"
                            TextWrapping="Wrap"
-                           Text="Khi bấm 'Tạo link', app sẽ tự gọi backend để cập nhật endpoint vào ô chỉ định bằng webhook ở trên." />
+                           Text="{StaticResource GoogleSheetHint}" />
             </Grid>
         </GroupBox>
 
-        <GroupBox Grid.Row="5" Header="Trạng thái">
+        <GroupBox Grid.Row="5" Header="{StaticResource StatusGroupHeader}">
             <StackPanel Margin="8,6,8,8">
                 <TextBlock Text="{Binding RealtimeState}" FontWeight="SemiBold" Foreground="{StaticResource BrushPrimaryText}" />
                 <TextBlock Text="{Binding StatusMessage}" Margin="0,4,0,0" TextWrapping="Wrap" />

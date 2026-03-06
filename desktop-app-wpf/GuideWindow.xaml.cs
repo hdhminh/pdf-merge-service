@@ -4,6 +4,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
+using PdfStampNgrokDesktop.Helpers;
 
 namespace PdfStampNgrokDesktop;
 
@@ -12,23 +13,23 @@ public partial class GuideWindow : Window
     private readonly IReadOnlyList<GuideSlide> _slides =
     [
         new(
-            "Bước 1 - Đăng ký hoặc đăng nhập tài khoản ngrok",
-            "Vui lòng mở liên kết bên dưới để đăng ký tài khoản mới hoặc đăng nhập tài khoản ngrok hiện có.",
+            UiText.Get("GuideStep1Title", "Buoc 1 - Dang ky hoac dang nhap tai khoan ngrok"),
+            UiText.Get("GuideStep1Body", "Vui long mo lien ket ben duoi de dang ky tai khoan moi hoac dang nhap tai khoan ngrok hien co."),
             "https://dashboard.ngrok.com/signup",
             "Assets/guide-step-1.png"),
         new(
-            "Bước 2 - Lấy AuthToken từ trang quản trị ngrok",
-            "Sau khi đăng nhập, vào Dashboard -> Getting Started, rồi copy chuỗi ngay sau lệnh \"ngrok config add-authtoken\".",
+            UiText.Get("GuideStep2Title", "Buoc 2 - Lay AuthToken tu trang quan tri ngrok"),
+            UiText.Get("GuideStep2Body", "Sau khi dang nhap, vao Dashboard -> Getting Started, roi copy chuoi ngay sau lenh \"ngrok config add-authtoken\"."),
             null,
             "Assets/guide-step-2.png"),
         new(
-            "Bước 3 - Thêm token vào phần mềm",
-            "Tại màn hình Token của phần mềm: nhập tên profile, dán AuthToken vào ô \"Nhập AuthToken\", sau đó bấm \"Thêm token\" và chọn \"Dùng\".",
+            UiText.Get("GuideStep3Title", "Buoc 3 - Them token vao phan mem"),
+            UiText.Get("GuideStep3Body", "Tai man hinh Token cua phan mem: nhap ten profile, dan AuthToken vao o \"Nhap AuthToken\", sau do bam \"Them token\" va chon \"Dung\"."),
             null,
             "Assets/guide-step-3.png"),
         new(
-            "Bước 4 - Tạo link và cập nhật Google Sheet tự động",
-            "Bấm \"Tạo link\" để khởi động tunnel. App sẽ tự động cập nhật endpoint vào ô Google Sheet đã cấu hình. Chỉ bấm \"Copy\" khi bạn cần dán endpoint thủ công ở nơi khác.",
+            UiText.Get("GuideStep4Title", "Buoc 4 - Tao link va cap nhat Google Sheet tu dong"),
+            UiText.Get("GuideStep4Body", "Bam \"Tao link\" de khoi dong tunnel. App se tu dong cap nhat endpoint vao o Google Sheet da cau hinh. Chi bam \"Copy\" khi ban can dan endpoint thu cong o noi khac."),
             null,
             "Assets/guide-step-4.png"),
     ];
@@ -109,7 +110,7 @@ public partial class GuideWindow : Window
     private void RenderSlide()
     {
         var slide = _slides[_currentIndex];
-        StepIndexText.Text = $"Bước {_currentIndex + 1}/{_slides.Count}";
+        StepIndexText.Text = UiText.Format("GuideStepIndexTemplate", "Buoc {0}/{1}", _currentIndex + 1, _slides.Count);
         StepTitleText.Text = slide.Title;
         StepBodyText.Text = slide.Body;
         StepImage.Source = ResolveImageSource(slide.ImageRelativePath);
@@ -126,7 +127,9 @@ public partial class GuideWindow : Window
         }
 
         PrevButton.IsEnabled = _currentIndex > 0;
-        NextButton.Content = _currentIndex >= _slides.Count - 1 ? "Xong" : "Sau";
+        NextButton.Content = _currentIndex >= _slides.Count - 1
+            ? UiText.Get("GuideDoneButton", "Xong")
+            : UiText.Get("GuideNextButton", "Sau");
     }
 
     private static ImageSource? ResolveImageSource(string? relativePath)

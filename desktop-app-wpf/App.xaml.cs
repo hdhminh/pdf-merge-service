@@ -1,6 +1,7 @@
 ﻿using System.IO;
 using System.Windows;
 using Microsoft.Extensions.DependencyInjection;
+using PdfStampNgrokDesktop.Helpers;
 using PdfStampNgrokDesktop.Options;
 using PdfStampNgrokDesktop.Services;
 using PdfStampNgrokDesktop.ViewModels;
@@ -52,8 +53,11 @@ public partial class App : Application
         {
             Log.Fatal(ex, "Startup failed.");
             MessageBox.Show(
-                "Ứng dụng không khởi động được.\nXem log tại %APPDATA%\\PdfStampNgrokDesktop\\logs.\n" + GetSupportContactText(),
-                "Lỗi khởi động",
+                UiText.Format(
+                    "StartupErrorMessageTemplate",
+                    "Ung dung khong khoi dong duoc.\nXem log tai %APPDATA%\\PdfStampNgrokDesktop\\logs.\n{0}",
+                    GetSupportContactText()),
+                UiText.Get("StartupErrorTitle", "Loi khoi dong"),
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
             Shutdown(-1);
@@ -91,8 +95,11 @@ public partial class App : Application
         {
             Log.Error(args.Exception, "Unhandled UI exception.");
             MessageBox.Show(
-                "Có lỗi không mong muốn.\nVui lòng gửi file log cho đội phát triển.\n" + GetSupportContactText(),
-                "Ứng dụng gặp lỗi",
+                UiText.Format(
+                    "UnhandledErrorMessageTemplate",
+                    "Co loi khong mong muon.\nVui long gui file log cho doi phat trien.\n{0}",
+                    GetSupportContactText()),
+                UiText.Get("UnhandledErrorTitle", "Ung dung gap loi"),
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
             args.Handled = true;
@@ -143,7 +150,7 @@ public partial class App : Application
             var path = Path.Combine(AppContext.BaseDirectory, SupportContactFileName);
             if (!File.Exists(path))
             {
-                return $"Liên hệ hỗ trợ: chưa cấu hình ({SupportContactFileName}).";
+                return UiText.Format("SupportContactMissingTemplate", "Lien he ho tro: chua cau hinh ({0}).", SupportContactFileName);
             }
 
             var line = File.ReadLines(path)
@@ -152,14 +159,14 @@ public partial class App : Application
 
             if (string.IsNullOrWhiteSpace(line))
             {
-                return $"Liên hệ hỗ trợ: chưa cấu hình ({SupportContactFileName}).";
+                return UiText.Format("SupportContactMissingTemplate", "Lien he ho tro: chua cau hinh ({0}).", SupportContactFileName);
             }
 
-            return $"Liên hệ hỗ trợ: {line}";
+            return UiText.Format("SupportContactTemplate", "Lien he ho tro: {0}", line);
         }
         catch
         {
-            return $"Liên hệ hỗ trợ: chưa cấu hình ({SupportContactFileName}).";
+            return UiText.Format("SupportContactMissingTemplate", "Lien he ho tro: chua cau hinh ({0}).", SupportContactFileName);
         }
     }
 }

@@ -91,111 +91,21 @@ jobs:
       - name: Install backend dependencies
         run: npm ci --omit=dev
 
+      - name: Clean local artifacts
+        shell: pwsh
+        run: ./scripts/clean-local-artifacts.ps1
+
       - name: Prune backend dependency payload
         shell: pwsh
-        run: |
-          $root = "node_modules"
-          if (-not (Test-Path $root)) {
-            throw "node_modules not found after npm ci."
-          }
-
-          function Get-DirSizeMb([string]$path) {
-            $sum = (Get-ChildItem -Path $path -Recurse -File -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum
-            if ($null -eq $sum) { return 0.0 }
-            return [math]::Round($sum / 1MB, 2)
-          }
-
-          $beforeMb = Get-DirSizeMb $root
-          $pruneDirNames = @("test", "tests", "__tests__", "doc", "docs", "example", "examples", "benchmark", "benchmarks", ".github", ".vscode", ".idea", "coverage")
-          Get-ChildItem -Path $root -Directory -Recurse -Force -ErrorAction SilentlyContinue |
-            Where-Object { $pruneDirNames -contains $_.Name.ToLowerInvariant() } |
-            ForEach-Object { Remove-Item -Path $_.FullName -Recurse -Force -ErrorAction SilentlyContinue }
-
-          Get-ChildItem -Path $root -File -Recurse -Filter "*.map" -ErrorAction SilentlyContinue |
-            Remove-Item -Force -ErrorAction SilentlyContinue
-          Get-ChildItem -Path $root -File -Recurse -Filter "*.tsbuildinfo" -ErrorAction SilentlyContinue |
-            Remove-Item -Force -ErrorAction SilentlyContinue
-
-          $afterMb = Get-DirSizeMb $root
-          Write-Host "node_modules size before prune: $beforeMb MB"
-          Write-Host "node_modules size after prune:  $afterMb MB"
+        run: ./scripts/prune-backend-payload.ps1
 
       - name: Ensure bundled Node runtime
         shell: pwsh
-        run: |
-          $targetDir = "bin/node-win-x64"
-          $targetExe = Join-Path $targetDir "node.exe"
-          if (Test-Path $targetExe) {
-            Write-Host "Using existing Node runtime: $targetExe"
-            exit 0
-          }
-
-          $nodeVersion = (node -p "process.version").TrimStart('v')
-          if (-not $nodeVersion) {
-            throw "Cannot resolve Node version."
-          }
-
-          New-Item -ItemType Directory -Path $targetDir -Force | Out-Null
-          $zipPath = Join-Path $env:RUNNER_TEMP "node-v$nodeVersion-win-x64.zip"
-          $shaPath = Join-Path $env:RUNNER_TEMP "SHASUMS256.txt"
-          $extractDir = Join-Path $env:RUNNER_TEMP "node-portable-win-x64"
-          $url = "https://nodejs.org/dist/v$nodeVersion/node-v$nodeVersion-win-x64.zip"
-
-          Invoke-WebRequest -Uri $url -OutFile $zipPath
-          Invoke-WebRequest -Uri "https://nodejs.org/dist/v$nodeVersion/SHASUMS256.txt" -OutFile $shaPath
-          $expectedLine = Get-Content $shaPath | Where-Object { $_ -match " node-v$nodeVersion-win-x64.zip$" } | Select-Object -First 1
-          if (-not $expectedLine) {
-            throw "Cannot resolve Node checksum from SHASUMS256.txt."
-          }
-          $expectedHash = ($expectedLine -split "\s+")[0].Trim().ToLowerInvariant()
-          $actualHash = (Get-FileHash -Path $zipPath -Algorithm SHA256).Hash.ToLowerInvariant()
-          if ($actualHash -ne $expectedHash) {
-            throw "Node runtime checksum mismatch. expected=$expectedHash actual=$actualHash"
-          }
-
-          if (Test-Path $extractDir) {
-            Remove-Item -Recurse -Force $extractDir
-          }
-          Expand-Archive -Path $zipPath -DestinationPath $extractDir -Force
-
-          $expandedRoot = Get-ChildItem -Path $extractDir -Directory | Select-Object -First 1
-          if ($null -eq $expandedRoot) {
-            throw "Cannot extract bundled Node runtime."
-          }
-
-          Copy-Item -Path (Join-Path $expandedRoot.FullName "*") -Destination $targetDir -Recurse -Force
-          if (-not (Test-Path $targetExe)) {
-            throw "node.exe was not found after extraction."
-          }
+        run: ./scripts/ensure-bundled-node.ps1
 
       - name: Ensure bundled ngrok
         shell: pwsh
-        run: |
-          $targetDir = "bin/win32-x64"
-          $targetExe = Join-Path $targetDir "ngrok.exe"
-          if (Test-Path $targetExe) {
-            Write-Host "Using existing ngrok binary: $targetExe"
-            exit 0
-          }
-
-          New-Item -ItemType Directory -Path $targetDir -Force | Out-Null
-          $zipPath = Join-Path $env:RUNNER_TEMP "ngrok-v3-windows-amd64.zip"
-          $expectedHash = "${{ vars.NGROK_WIN_AMD64_SHA256 }}".Trim().ToLowerInvariant()
-          if (-not $expectedHash) {
-            $expectedHash = "2cf6f8bce5e642b26f147c46423d4ce7f70528450038201eb114519162a98281"
-          }
-
-          Invoke-WebRequest -Uri "https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip" -OutFile $zipPath
-          $actualHash = (Get-FileHash -Path $zipPath -Algorithm SHA256).Hash.ToLowerInvariant()
-          if ($actualHash -ne $expectedHash) {
-            throw "ngrok zip checksum mismatch. expected=$expectedHash actual=$actualHash. Update NGROK_WIN_AMD64_SHA256 after verifying vendor binary."
-          }
-
-          Expand-Archive -Path $zipPath -DestinationPath $targetDir -Force
-
-          if (-not (Test-Path $targetExe)) {
-            throw "ngrok.exe was not found after extraction."
-          }
+        run: ./scripts/ensure-bundled-ngrok.ps1 -ExpectedZipSha256 "${{ vars.NGROK_WIN_AMD64_SHA256 }}"
 
       - name: Install Velopack CLI
         run: dotnet tool update -g vpk

@@ -1,7 +1,7 @@
-<Window x:Class="PdfStampNgrokDesktop.ConfirmDeleteTokenWindow"
+﻿<Window x:Class="PdfStampNgrokDesktop.ConfirmDeleteTokenWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Xác nhận"
+        Title="{StaticResource ConfirmTitle}"
         Width="360"
         Height="180"
         MinWidth="360"
@@ -30,7 +30,7 @@
                        Margin="0,0,8,0"
                        VerticalAlignment="Center"
                        Foreground="#B35D00" />
-            <TextBlock Text="Xóa token đã chọn?"
+            <TextBlock Text="{StaticResource ConfirmDeleteQuestion}"
                        FontSize="16"
                        FontWeight="SemiBold"
                        Foreground="#0F2C3F"
@@ -38,7 +38,7 @@
         </StackPanel>
 
         <TextBlock Grid.Row="2"
-                   Text="Thao tác này không thể hoàn tác."
+                   Text="{StaticResource ConfirmDeleteDesc}"
                    TextWrapping="Wrap"
                    Foreground="#334E68" />
 
@@ -48,12 +48,12 @@
             <Button Width="88"
                     Height="32"
                     Margin="0,0,8,0"
-                    Content="Không"
+                    Content="{StaticResource NoButton}"
                     Click="CancelButton_Click"
                     IsCancel="True" />
             <Button Width="88"
                     Height="32"
-                    Content="Có"
+                    Content="{StaticResource YesButton}"
                     Click="ConfirmButton_Click"
                     IsDefault="True" />
         </StackPanel>

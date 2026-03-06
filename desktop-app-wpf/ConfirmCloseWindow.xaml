@@ -1,7 +1,7 @@
-<Window x:Class="PdfStampNgrokDesktop.ConfirmCloseWindow"
+﻿<Window x:Class="PdfStampNgrokDesktop.ConfirmCloseWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Xác nhận thoát"
+        Title="{StaticResource ConfirmCloseTitle}"
         Width="340"
         Height="170"
         MinWidth="340"
@@ -25,13 +25,13 @@
         </Grid.RowDefinitions>
 
         <TextBlock Grid.Row="0"
-                   Text="Thoát ứng dụng?"
+                   Text="{StaticResource ConfirmCloseQuestion}"
                    FontSize="18"
                    FontWeight="SemiBold"
                    Foreground="#0F2C3F" />
 
         <TextBlock Grid.Row="2"
-                   Text="Backend và ngrok sẽ dừng."
+                   Text="{StaticResource ConfirmCloseDesc}"
                    TextWrapping="Wrap"
                    Foreground="#334E68" />
 
@@ -41,12 +41,12 @@
             <Button Width="88"
                     Height="32"
                     Margin="0,0,8,0"
-                    Content="Ở lại"
+                    Content="{StaticResource ConfirmStayButton}"
                     Click="CancelButton_Click"
                     IsCancel="True" />
             <Button Width="88"
                     Height="32"
-                    Content="Thoát"
+                    Content="{StaticResource ConfirmExitButton}"
                     Click="ConfirmButton_Click"
                     IsDefault="True" />
         </StackPanel>

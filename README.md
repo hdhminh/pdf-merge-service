@@ -24,6 +24,19 @@ No Google Service Account is required for this backend.
 npm install
 ```
 
+## Local Packaging Helpers
+
+```powershell
+# Remove local build trash/artifacts
+./scripts/clean-local-artifacts.ps1
+
+# Prune backend payload (same rule as CI)
+./scripts/prune-backend-payload.ps1
+
+# Local publish for desktop app
+./scripts/publish-wpf-local.ps1 -Version 1.3.17-local -Channel stable
+```
+
 ## Environment
 
 ```env
@@ -166,7 +179,7 @@ Notes:
   - signature fields are injected by the .NET/iText helper at `tools/signature-field-tool/SignatureFieldTool`
 - Build helper before running backend:
   - `dotnet build tools/signature-field-tool/SignatureFieldTool/SignatureFieldTool.csproj -c Release`
-  - `dotnet` runtime/SDK is required at runtime when `signatureFields.enabled` is `true`
+  - Desktop app release bundles `SignatureFieldTool.exe` self-contained, so client machine does not need to install .NET runtime manually.
 - `signatureFields` controls field names and geometry (`enabled`, `enterpriseName`, `personalName`, `height`, `width`, `centerGap`, `lineGap`, `sideInset`, `replaceExisting`, `overlap`, `overlapOffsetX`, `overlapOffsetY`).
 - `replaceExisting` defaults to `true`: if a signature field with the same name already exists, backend replaces it instead of creating `_2`, `_3`, ...
 - `signatureFields.overlap` defaults to `true` (stacked/overlapped layout). Set `overlap: false` to separate left/right fields.
@@ -249,3 +262,8 @@ Response:
   "message": "Readable error message"
 }
 ```
+
+## Release Gate (Real Machine Matrix)
+
+- Manual matrix before release is documented at:
+  - `docs/release-test-matrix.md`

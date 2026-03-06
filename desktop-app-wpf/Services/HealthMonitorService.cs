@@ -1,5 +1,6 @@
 using System.Net.Http;
 using PdfStampNgrokDesktop.Core;
+using PdfStampNgrokDesktop.Helpers;
 
 namespace PdfStampNgrokDesktop.Services;
 
@@ -18,8 +19,8 @@ public sealed class HealthMonitorService : IHealthMonitorService
             return Result<LinkHealthState>.Ok(new LinkHealthState
             {
                 Indicator = LinkIndicator.Idle,
-                BadgeText = "Chưa có link",
-                StatusText = "Sẵn sàng. Chọn token rồi bấm 'Tạo link'.",
+                BadgeText = UiText.Get("IdleBadgeText", "Chua co link"),
+                StatusText = UiText.Get("StatusReady", "San sang. Chon token roi bam 'Tao link'."),
                 StampUrl = null,
             });
         }
@@ -29,8 +30,8 @@ public sealed class HealthMonitorService : IHealthMonitorService
             return Result<LinkHealthState>.Ok(new LinkHealthState
             {
                 Indicator = LinkIndicator.Error,
-                BadgeText = "Link lỗi",
-                StatusText = "Có link cũ nhưng ngrok đã dừng.",
+                BadgeText = UiText.Get("BadgeLinkErrorText", "Link loi"),
+                StatusText = UiText.Get("StatusStaleLinkNgrokStopped", "Co link cu nhung ngrok da dung."),
                 StampUrl = stampUrl,
             });
         }
@@ -40,7 +41,7 @@ public sealed class HealthMonitorService : IHealthMonitorService
             return Result<LinkHealthState>.Ok(new LinkHealthState
             {
                 Indicator = LinkIndicator.Error,
-                BadgeText = "Lỗi ngrok",
+                BadgeText = UiText.Get("BadgeNgrokErrorText", "Loi ngrok"),
                 StatusText = ngrokError,
                 StampUrl = stampUrl,
             });
@@ -51,8 +52,8 @@ public sealed class HealthMonitorService : IHealthMonitorService
             return Result<LinkHealthState>.Ok(new LinkHealthState
             {
                 Indicator = LinkIndicator.Degraded,
-                BadgeText = "Đang tạo",
-                StatusText = "ngrok đã chạy, đang chờ tunnel.",
+                BadgeText = UiText.Get("BadgeCreatingText", "Dang tao"),
+                StatusText = UiText.Get("StatusWaitingTunnel", "ngrok da chay, dang cho tunnel."),
                 StampUrl = null,
             });
         }
@@ -66,8 +67,8 @@ public sealed class HealthMonitorService : IHealthMonitorService
                 return Result<LinkHealthState>.Ok(new LinkHealthState
                 {
                     Indicator = LinkIndicator.Healthy,
-                    BadgeText = "Đã có link",
-                    StatusText = "Endpoint hoạt động bình thường.",
+                    BadgeText = UiText.Get("BadgeLinkReadyText", "Da co link"),
+                    StatusText = UiText.Get("StatusEndpointHealthy", "Endpoint hoat dong binh thuong."),
                     StampUrl = stampUrl,
                 });
             }
@@ -75,8 +76,8 @@ public sealed class HealthMonitorService : IHealthMonitorService
             return Result<LinkHealthState>.Ok(new LinkHealthState
             {
                 Indicator = LinkIndicator.Error,
-                BadgeText = "Link lỗi",
-                StatusText = $"Endpoint trả về mã {(int)response.StatusCode}.",
+                BadgeText = UiText.Get("BadgeLinkErrorText", "Link loi"),
+                StatusText = UiText.Format("StatusEndpointCodeTemplate", "Endpoint tra ve ma {0}.", (int)response.StatusCode),
                 StampUrl = stampUrl,
             });
         }
@@ -85,8 +86,8 @@ public sealed class HealthMonitorService : IHealthMonitorService
             return Result<LinkHealthState>.Ok(new LinkHealthState
             {
                 Indicator = LinkIndicator.Error,
-                BadgeText = "Link lỗi",
-                StatusText = "Không thể truy cập endpoint qua public URL.",
+                BadgeText = UiText.Get("BadgeLinkErrorText", "Link loi"),
+                StatusText = UiText.Get("StatusEndpointUnreachable", "Khong the truy cap endpoint qua public URL."),
                 StampUrl = stampUrl,
             });
         }

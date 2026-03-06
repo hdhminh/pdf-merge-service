@@ -44,13 +44,13 @@ public sealed class MainViewModel : ObservableObject
     private bool _isSessionLocked;
     private bool _autoCopyOnGenerate;
     private string _stampUrl = string.Empty;
-    private string _statusMessage = "Sáºµn sÃ ng.";
-    private string _realtimeState = "ÄÃ£ sáºµn sÃ ng";
-    private string _copyButtonText = "Copy";
-    private string _badgeText = "ChÆ°a cÃ³ link";
+    private string _statusMessage = UiText.Get("StatusReady", "San sang.");
+    private string _realtimeState = UiText.Get("StateReady", "Da san sang");
+    private string _copyButtonText = UiText.Get("CopyButton", "Copy");
+    private string _badgeText = UiText.Get("IdleBadgeText", "Chua co link");
     private LinkIndicator _badgeIndicator = LinkIndicator.Idle;
     private UpdateChannel _selectedUpdateChannel = UpdateChannel.Stable;
-    private string _updateHint = "KÃªnh cáº­p nháº­t: stable";
+    private string _updateHint = UiText.Format("UpdateChannelHintTemplate", "Kenh cap nhat: {0}", "stable");
     private bool _isDeveloperGoogleSheetPanelVisible;
 
     public MainViewModel(
@@ -98,7 +98,7 @@ public sealed class MainViewModel : ObservableObject
         _copyFeedbackTimer.Tick += (_, _) =>
         {
             _copyFeedbackTimer.Stop();
-            CopyButtonText = "Copy";
+            CopyButtonText = UiText.Get("CopyButton", "Copy");
         };
 
         _revealTimer = new DispatcherTimer
@@ -280,7 +280,7 @@ public sealed class MainViewModel : ObservableObject
         {
             SetProperty(ref _selectedUpdateChannel, value);
             _config.Update.Channel = value;
-            UpdateHint = $"KÃªnh cáº­p nháº­t: {value.ToString().ToLowerInvariant()}";
+            UpdateHint = UiText.Format("UpdateChannelHintTemplate", "Kenh cap nhat: {0}", value.ToString().ToLowerInvariant());
             _ = _tokenStoreService.SaveAsync(_config);
         }
     }
@@ -298,15 +298,15 @@ public sealed class MainViewModel : ObservableObject
             return;
         }
 
-        RealtimeState = "Äang kiá»ƒm tra";
-        StatusMessage = "Äang táº£i cáº¥u hÃ¬nh...";
+        RealtimeState = UiText.Get("StateChecking", "Dang kiem tra");
+        StatusMessage = UiText.Get("StatusLoadingConfig", "Dang tai cau hinh...");
 
         var loadResult = await _tokenStoreService.LoadAsync();
         if (!loadResult.IsSuccess || loadResult.Value is null)
         {
-            BadgeText = "Lá»—i";
+            BadgeText = UiText.Get("BadgeErrorText", "Loi");
             BadgeIndicator = LinkIndicator.Error;
-            RealtimeState = "Lá»—i";
+            RealtimeState = UiText.Get("StateError", "Loi");
             StatusMessage = $"{loadResult.Code}: {loadResult.Message}";
             return;
         }
@@ -329,8 +329,8 @@ public sealed class MainViewModel : ObservableObject
         }
 
         _refreshTimer.Start();
-        RealtimeState = "ÄÃ£ sáºµn sÃ ng";
-        StatusMessage = "Sáºµn sÃ ng. Chá»n token rá»“i báº¥m 'Táº¡o link'.";
+        RealtimeState = UiText.Get("StateReady", "Da san sang");
+        StatusMessage = UiText.Get("StatusReady", "San sang. Chon token roi bam 'Tao link'.");
         await RefreshHealthAsync();
         _ = CheckForUpdatesInBackgroundAsync();
         _initialized = true;
@@ -393,8 +393,8 @@ public sealed class MainViewModel : ObservableObject
         IsSessionLocked = true;
         IsRevealTokenInput = false;
         _revealTimer.Stop();
-        RealtimeState = "Äang kiá»ƒm tra";
-        StatusMessage = "PhiÃªn Ä‘Ã£ tá»± khÃ³a do khÃ´ng thao tÃ¡c.";
+        RealtimeState = UiText.Get("StateChecking", "Dang kiem tra");
+        StatusMessage = UiText.Get("StatusSessionLocked", "Phien da tu khoa do khong thao tac.");
         RaisePropertyChanged(nameof(CanShowLockBanner));
     }
 
@@ -402,8 +402,8 @@ public sealed class MainViewModel : ObservableObject
     {
         IsSessionLocked = false;
         _lastActivityUtc = DateTime.UtcNow;
-        RealtimeState = "ÄÃ£ sáºµn sÃ ng";
-        StatusMessage = "ÄÃ£ má»Ÿ khÃ³a phiÃªn.";
+        RealtimeState = UiText.Get("StateReady", "Da san sang");
+        StatusMessage = UiText.Get("StatusSessionUnlocked", "Da mo khoa phien.");
         RaisePropertyChanged(nameof(CanShowLockBanner));
     }
 
@@ -418,13 +418,13 @@ public sealed class MainViewModel : ObservableObject
         var name = (NewProfileName ?? string.Empty).Trim();
         if (string.IsNullOrWhiteSpace(token))
         {
-            SetUiError("Token khÃ´ng Ä‘Æ°á»£c Ä‘á»ƒ trá»‘ng.", ErrorCode.InvalidInput);
+            SetUiError(UiText.Get("ErrorTokenEmpty", "Token khong duoc de trong."), ErrorCode.InvalidInput);
             return;
         }
 
         if (await TokenExistsAsync(token))
         {
-            SetUiError("Token nÃ y Ä‘Ã£ tá»“n táº¡i.", ErrorCode.InvalidInput);
+            SetUiError(UiText.Get("ErrorTokenExists", "Token nay da ton tai."), ErrorCode.InvalidInput);
             return;
         }
 
@@ -436,8 +436,8 @@ public sealed class MainViewModel : ObservableObject
         }
 
         IsBusy = true;
-        RealtimeState = "Äang táº¡o";
-        StatusMessage = "Äang thÃªm token...";
+        RealtimeState = UiText.Get("StateCreating", "Dang tao");
+        StatusMessage = UiText.Get("StatusAddingToken", "Dang them token...");
 
         try
         {
@@ -464,8 +464,8 @@ public sealed class MainViewModel : ObservableObject
             NewProfileToken = string.Empty;
             IsRevealTokenInput = false;
             RefreshProfiles();
-            RealtimeState = "ÄÃ£ sáºµn sÃ ng";
-            StatusMessage = "ÄÃ£ thÃªm token.";
+            RealtimeState = UiText.Get("StateReady", "Da san sang");
+            StatusMessage = UiText.Get("StatusTokenAdded", "Da them token.");
         }
         finally
         {
@@ -483,13 +483,13 @@ public sealed class MainViewModel : ObservableObject
 
         if (string.IsNullOrWhiteSpace(SelectedProfileId))
         {
-            SetUiError("Báº¡n chÆ°a chá»n token.", ErrorCode.InvalidInput);
+            SetUiError(UiText.Get("ErrorNoSelectedToken", "Ban chua chon token."), ErrorCode.InvalidInput);
             return;
         }
 
         IsBusy = true;
-        RealtimeState = "Äang kiá»ƒm tra";
-        StatusMessage = "Äang Ã¡p dá»¥ng token...";
+        RealtimeState = UiText.Get("StateChecking", "Dang kiem tra");
+        StatusMessage = UiText.Get("StatusApplyingToken", "Dang ap dung token...");
         try
         {
             _config.ActiveProfileId = SelectedProfileId;
@@ -503,8 +503,8 @@ public sealed class MainViewModel : ObservableObject
             await _ngrokService.StopAsync();
             _keepTunnelAlive = false;
             StampUrl = string.Empty;
-            RealtimeState = "ÄÃ£ sáºµn sÃ ng";
-            StatusMessage = "ÄÃ£ Ã¡p dá»¥ng token.";
+            RealtimeState = UiText.Get("StateReady", "Da san sang");
+            StatusMessage = UiText.Get("StatusTokenApplied", "Da ap dung token.");
         }
         finally
         {
@@ -522,7 +522,7 @@ public sealed class MainViewModel : ObservableObject
 
         if (string.IsNullOrWhiteSpace(SelectedProfileId))
         {
-            SetUiError("Báº¡n chÆ°a chá»n token Ä‘á»ƒ xÃ³a.", ErrorCode.InvalidInput);
+            SetUiError(UiText.Get("ErrorNoSelectedTokenToDelete", "Ban chua chon token de xoa."), ErrorCode.InvalidInput);
             return;
         }
 
@@ -537,8 +537,8 @@ public sealed class MainViewModel : ObservableObject
         }
 
         IsBusy = true;
-        RealtimeState = "Äang kiá»ƒm tra";
-        StatusMessage = "Äang xÃ³a token...";
+        RealtimeState = UiText.Get("StateChecking", "Dang kiem tra");
+        StatusMessage = UiText.Get("StatusRemovingToken", "Dang xoa token...");
         try
         {
             _config.Profiles.RemoveAll(x => x.Id == SelectedProfileId);
@@ -555,9 +555,9 @@ public sealed class MainViewModel : ObservableObject
             StampUrl = string.Empty;
             RefreshProfiles();
             StatusMessage = _config.Profiles.Count == 0
-                ? "ÄÃ£ xÃ³a háº¿t token."
-                : "ÄÃ£ xÃ³a token.";
-            RealtimeState = "ÄÃ£ sáºµn sÃ ng";
+                ? UiText.Get("StatusNoTokenRemaining", "Da xoa token cuoi cung.")
+                : UiText.Get("StatusTokenRemoved", "Da xoa token.");
+            RealtimeState = UiText.Get("StateReady", "Da san sang");
         }
         finally
         {
@@ -581,8 +581,8 @@ public sealed class MainViewModel : ObservableObject
         }
 
         IsBusy = true;
-        RealtimeState = "Äang táº¡o";
-        StatusMessage = "Äang khá»Ÿi Ä‘á»™ng backend vÃ  ngrok...";
+        RealtimeState = UiText.Get("StateCreating", "Dang tao");
+        StatusMessage = UiText.Get("StatusStartingBackendNgrok", "Dang khoi dong backend va ngrok...");
 
         try
         {
@@ -605,7 +605,7 @@ public sealed class MainViewModel : ObservableObject
             if (tunnel is null)
             {
                 _keepTunnelAlive = false;
-                SetUiError("KhÃ´ng láº¥y Ä‘Æ°á»£c tunnel ngrok.", ErrorCode.NgrokTunnelUnavailable);
+                SetUiError(UiText.Get("ErrorNgrokTunnelUnavailable", "Khong lay duoc tunnel ngrok."), ErrorCode.NgrokTunnelUnavailable);
                 return;
             }
 
@@ -621,8 +621,8 @@ public sealed class MainViewModel : ObservableObject
                     syncResult.Message);
             }
 
-            StatusMessage = "ÄÃ£ táº¡o link.";
-            RealtimeState = "ÄÃ£ sáºµn sÃ ng";
+            StatusMessage = UiText.Get("StatusLinkCreated", "Da tao link.");
+            RealtimeState = UiText.Get("StateReady", "Da san sang");
         }
         finally
         {
@@ -634,15 +634,15 @@ public sealed class MainViewModel : ObservableObject
     private async Task CancelLinkAsync()
     {
         IsBusy = true;
-        RealtimeState = "Äang kiá»ƒm tra";
-        StatusMessage = "Äang há»§y link...";
+        RealtimeState = UiText.Get("StateChecking", "Dang kiem tra");
+        StatusMessage = UiText.Get("StatusCancellingLink", "Dang huy link...");
         try
         {
             await _ngrokService.StopAsync();
             _keepTunnelAlive = false;
             StampUrl = string.Empty;
-            RealtimeState = "ÄÃ£ sáºµn sÃ ng";
-            StatusMessage = "ÄÃ£ há»§y link.";
+            RealtimeState = UiText.Get("StateReady", "Da san sang");
+            StatusMessage = UiText.Get("StatusLinkCancelled", "Da huy link.");
         }
         finally
         {
@@ -660,11 +660,11 @@ public sealed class MainViewModel : ObservableObject
         }
 
         Clipboard.SetText(value);
-        CopyButtonText = "ÄÃ£ copy";
+        CopyButtonText = UiText.Get("CopyDoneButton", "Da copy");
         _copyFeedbackTimer.Stop();
         _copyFeedbackTimer.Start();
-        StatusMessage = "ÄÃ£ copy link.";
-        RealtimeState = "ÄÃ£ sáºµn sÃ ng";
+        StatusMessage = UiText.Get("StatusLinkCopied", "Da copy link.");
+        RealtimeState = UiText.Get("StateReady", "Da san sang");
         NotifyUserActivity();
     }
 
@@ -687,8 +687,8 @@ public sealed class MainViewModel : ObservableObject
     private async Task RestoreBackupAsync()
     {
         IsBusy = true;
-        RealtimeState = "Äang kiá»ƒm tra";
-        StatusMessage = "Äang khÃ´i phá»¥c backup cáº¥u hÃ¬nh...";
+        RealtimeState = UiText.Get("StateChecking", "Dang kiem tra");
+        StatusMessage = UiText.Get("StatusRestoringBackup", "Dang khoi phuc backup cau hinh...");
         try
         {
             var restore = await _tokenStoreService.RestoreLatestBackupAsync();
@@ -706,8 +706,8 @@ public sealed class MainViewModel : ObservableObject
             await _ngrokService.StopAsync();
             StampUrl = string.Empty;
             _keepTunnelAlive = false;
-            StatusMessage = "ÄÃ£ khÃ´i phá»¥c backup gáº§n nháº¥t.";
-            RealtimeState = "ÄÃ£ sáºµn sÃ ng";
+            StatusMessage = UiText.Get("StatusBackupRestored", "Da khoi phuc backup gan nhat.");
+            RealtimeState = UiText.Get("StateReady", "Da san sang");
         }
         finally
         {
@@ -719,8 +719,8 @@ public sealed class MainViewModel : ObservableObject
     private async Task CheckUpdateAsync()
     {
         IsBusy = true;
-        RealtimeState = "Dang kiem tra";
-        StatusMessage = "Dang kiem tra cap nhat...";
+        RealtimeState = UiText.Get("StateChecking", "Dang kiem tra");
+        StatusMessage = UiText.Get("StatusCheckingUpdate", "Dang kiem tra cap nhat...");
         try
         {
             var currentVersion = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "0.0.0";
@@ -732,8 +732,8 @@ public sealed class MainViewModel : ObservableObject
             }
             if (result.Value is null)
             {
-                RealtimeState = "Da san sang";
-                StatusMessage = "Khong co ban cap nhat moi.";
+                RealtimeState = UiText.Get("StateReady", "Da san sang");
+                StatusMessage = UiText.Get("StatusNoNewUpdate", "Khong co ban cap nhat moi.");
                 return;
             }
             await PromptAndApplyUpdateAsync(result.Value, currentVersion, fromBackgroundCheck: false);
@@ -775,7 +775,7 @@ public sealed class MainViewModel : ObservableObject
         if (!result.IsSuccess || result.Value is null)
         {
             BadgeIndicator = LinkIndicator.Error;
-            BadgeText = "Lá»—i";
+            BadgeText = UiText.Get("BadgeErrorText", "Loi");
             return;
         }
 
@@ -786,10 +786,10 @@ public sealed class MainViewModel : ObservableObject
         {
             RealtimeState = result.Value.Indicator switch
             {
-                LinkIndicator.Healthy => "ÄÃ£ sáºµn sÃ ng",
-                LinkIndicator.Degraded => "Äang kiá»ƒm tra",
-                LinkIndicator.Error => "Lá»—i",
-                _ => "ÄÃ£ sáºµn sÃ ng",
+                LinkIndicator.Healthy => UiText.Get("StateReady", "Da san sang"),
+                LinkIndicator.Degraded => UiText.Get("StateChecking", "Dang kiem tra"),
+                LinkIndicator.Error => UiText.Get("StateError", "Loi"),
+                _ => UiText.Get("StateReady", "Da san sang"),
             };
         }
     }
@@ -827,7 +827,7 @@ public sealed class MainViewModel : ObservableObject
         }
 
         StampUrl = tunnel.StampUrl;
-        StatusMessage = "Watchdog Ä‘Ã£ khÃ´i phá»¥c tunnel.";
+        StatusMessage = UiText.Get("StatusWatchdogRecovered", "Watchdog da khoi phuc tunnel.");
     }
 
     private async Task<TunnelInfo?> WaitForTunnelAsync(TimeSpan timeout)
@@ -865,12 +865,14 @@ public sealed class MainViewModel : ObservableObject
         var save = await _tokenStoreService.SaveAsync(_config);
         if (!save.IsSuccess)
         {
-            return Result.Fail(save.Code, $"LÆ°u cáº¥u hÃ¬nh Google Sheet tháº¥t báº¡i: {save.Message}");
+            return Result.Fail(
+                save.Code,
+                UiText.Format("ErrorGoogleSheetConfigSaveTemplate", "Luu cau hinh Google Sheet that bai: {0}", save.Message));
         }
 
         if (string.IsNullOrWhiteSpace(normalizedSheetId))
         {
-            return Result.Ok("ÄÃ£ táº¡o link ngrok. ChÆ°a nháº­p Google Sheet ID nÃªn bá» qua cáº­p nháº­t tá»± Ä‘á»™ng.");
+            return Result.Ok(UiText.Get("StatusLinkCreatedNoSheetSync", "Da tao link ngrok. Chua nhap Google Sheet ID nen bo qua cap nhat tu dong."));
         }
 
         var syncResult = await _backendService.SyncGoogleSheetEndpointAsync(
@@ -881,10 +883,13 @@ public sealed class MainViewModel : ObservableObject
             endpointUrl);
         if (!syncResult.IsSuccess)
         {
-            return Result.Fail(syncResult.Code, $"Cáº­p nháº­t Google Sheet tháº¥t báº¡i: {syncResult.Message}");
+            return Result.Fail(
+                syncResult.Code,
+                UiText.Format("ErrorGoogleSheetSyncTemplate", "Cap nhat Google Sheet that bai: {0}", syncResult.Message));
         }
 
-        return Result.Ok($"ÄÃ£ táº¡o link vÃ  cáº­p nháº­t Google Sheet ({normalizedTargetCell}).");
+        return Result.Ok(
+            UiText.Format("StatusLinkCreatedAndSheetUpdatedTemplate", "Da tao link va cap nhat Google Sheet ({0}).", normalizedTargetCell));
     }
 
     private static string NormalizeGoogleSheetId(string? input)
@@ -972,13 +977,17 @@ public sealed class MainViewModel : ObservableObject
         var activeId = GetActiveProfileId();
         if (string.IsNullOrWhiteSpace(activeId))
         {
-            return Result<string>.Fail(ErrorCode.InvalidInput, "Báº¡n cáº§n thÃªm token trÆ°á»›c khi táº¡o link.");
+            return Result<string>.Fail(
+                ErrorCode.InvalidInput,
+                UiText.Get("ErrorNeedTokenBeforeCreateLink", "Ban can them token truoc khi tao link."));
         }
 
         var profile = _config.Profiles.FirstOrDefault(x => x.Id == activeId);
         if (profile is null)
         {
-            return Result<string>.Fail(ErrorCode.NotFound, "KhÃ´ng tÃ¬m tháº¥y profile token Ä‘ang dÃ¹ng.");
+            return Result<string>.Fail(
+                ErrorCode.NotFound,
+                UiText.Get("ErrorActiveProfileMissing", "Khong tim thay profile token dang dung."));
         }
 
         var tokenResult = _tokenStoreService.UnprotectToken(profile.EncryptedToken);
@@ -1033,16 +1042,16 @@ public sealed class MainViewModel : ObservableObject
             return true;
         }
 
-        SetUiError("PhiÃªn Ä‘ang khÃ³a. Báº¥m 'Má»Ÿ khÃ³a phiÃªn' trÆ°á»›c.", ErrorCode.Unauthorized);
+        SetUiError(UiText.Get("ErrorSessionLocked", "Phien dang khoa. Bam 'Mo khoa phien' truoc."), ErrorCode.Unauthorized);
         return false;
     }
 
     private void SetUiError(string message, ErrorCode code)
     {
-        RealtimeState = "Lá»—i";
+        RealtimeState = UiText.Get("StateError", "Loi");
         StatusMessage = $"{code}: {message}";
         BadgeIndicator = LinkIndicator.Error;
-        BadgeText = "Lá»—i";
+        BadgeText = UiText.Get("BadgeErrorText", "Loi");
     }
 
     private bool CanUseSensitiveAction()
@@ -1157,8 +1166,8 @@ public sealed class MainViewModel : ObservableObject
     }
     private async Task PromptAndApplyUpdateAsync(UpdateManifest manifest, string currentVersion, bool fromBackgroundCheck)
     {
-        RealtimeState = "Da san sang";
-        StatusMessage = $"Co ban cap nhat moi: {manifest.Version}.";
+        RealtimeState = UiText.Get("StateReady", "Da san sang");
+        StatusMessage = UiText.Format("StatusUpdateAvailableTemplate", "Co ban cap nhat moi: {0}.", manifest.Version);
         var dialog = new PdfStampNgrokDesktop.ConfirmUpdateWindow(manifest.Version, fromBackgroundCheck);
         if (Application.Current?.MainWindow is not null)
         {
@@ -1167,11 +1176,11 @@ public sealed class MainViewModel : ObservableObject
         var approve = dialog.ShowDialog() == true;
         if (!approve)
         {
-            StatusMessage = "Da bo qua cap nhat. Ban co the cap nhat sau.";
+            StatusMessage = UiText.Get("StatusUpdateSkipped", "Da bo qua cap nhat. Ban co the cap nhat sau.");
             return;
         }
-        RealtimeState = "Dang kiem tra";
-        StatusMessage = $"Dang tai ban {manifest.Version}...";
+        RealtimeState = UiText.Get("StateChecking", "Dang kiem tra");
+        StatusMessage = UiText.Format("StatusUpdateDownloadingTemplate", "Dang tai ban {0}...", manifest.Version);
         var applyResult = await _updateService.ApplyUpdateAsync(_config.Update, currentVersion);
         if (!applyResult.IsSuccess)
         {
@@ -1180,12 +1189,12 @@ public sealed class MainViewModel : ObservableObject
         }
         if (applyResult.Value is null)
         {
-            RealtimeState = "Da san sang";
-            StatusMessage = "Khong tim thay ban cap nhat moi de ap dung.";
+            RealtimeState = UiText.Get("StateReady", "Da san sang");
+            StatusMessage = UiText.Get("StatusUpdateNoCandidate", "Khong tim thay ban cap nhat moi de ap dung.");
             return;
         }
-        RealtimeState = "Da san sang";
-        StatusMessage = $"Dang ap dung cap nhat {applyResult.Value.Version}. Ung dung se tu mo lai.";
+        RealtimeState = UiText.Get("StateReady", "Da san sang");
+        StatusMessage = UiText.Format("StatusUpdateApplyingTemplate", "Dang ap dung cap nhat {0}. Ung dung se tu mo lai.", applyResult.Value.Version);
     }
 
     private Result ValidateRuntimeDependencies()
@@ -1203,7 +1212,9 @@ public sealed class MainViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            return Result.Fail(ErrorCode.NotFound, $"Thieu backend runtime: {ex.Message}");
+            return Result.Fail(
+                ErrorCode.NotFound,
+                UiText.Format("ErrorBackendRuntimeMissingTemplate", "Thieu backend runtime: {0}", ex.Message));
         }
 
         var issues = PathResolver.CollectRuntimeIssues(backendRoot);
@@ -1215,7 +1226,10 @@ public sealed class MainViewModel : ObservableObject
 
         return Result.Fail(
             ErrorCode.NotFound,
-            $"Runtime chua day du ({string.Join(", ", issues)}). Vui long cap nhat app ban moi nhat.");
+            UiText.Format(
+                "ErrorRuntimeIncompleteTemplate",
+                "Runtime chua day du ({0}). Vui long cap nhat app ban moi nhat.",
+                string.Join(", ", issues)));
     }
 
     private void MonitorProcessMemory()
@@ -1230,10 +1244,12 @@ public sealed class MainViewModel : ObservableObject
         Log.Warning("Memory usage high: {MemoryMb} MB", memoryMb);
         if (!IsBusy)
         {
-            StatusMessage = $"Cáº£nh bÃ¡o: RAM app Ä‘ang cao ({memoryMb}MB).";
+            StatusMessage = UiText.Format("StatusMemoryWarningTemplate", "Canh bao: RAM app dang cao ({0}MB).", memoryMb);
         }
     }
 }
+
+
 
 
 

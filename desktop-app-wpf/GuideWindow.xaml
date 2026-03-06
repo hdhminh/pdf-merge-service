@@ -2,7 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:nav="clr-namespace:System.Windows.Navigation;assembly=PresentationFramework"
-        Title="Hướng dẫn sử dụng"
+        Title="{StaticResource GuideWindowTitle}"
         Height="760"
         Width="980"
         MinHeight="700"
@@ -27,7 +27,7 @@
                        Foreground="{StaticResource BrushPrimaryText}"
                        VerticalAlignment="Center" />
             <Button DockPanel.Dock="Right"
-                    Content="Đóng"
+                    Content="{StaticResource GuideCloseButton}"
                     Width="86"
                     Height="30"
                     Click="CloseButton_Click" />
@@ -67,7 +67,7 @@
                                Margin="0,10,0,0"
                                FontSize="17"
                                Visibility="Collapsed">
-                        <Run Text="Link mở trực tiếp: " />
+                        <Run Text="{StaticResource GuideDirectLinkLabel}" />
                         <Hyperlink x:Name="StepLinkHyperlink" RequestNavigate="StepLinkHyperlink_RequestNavigate">
                             <Run x:Name="StepLinkRun" />
                         </Hyperlink>
@@ -86,13 +86,13 @@
         <DockPanel Grid.Row="4" LastChildFill="False">
             <Button x:Name="PrevButton"
                     DockPanel.Dock="Left"
-                    Content="Trước"
+                    Content="{StaticResource GuidePrevButton}"
                     Width="90"
                     Height="32"
                     Click="PrevButton_Click" />
             <Button x:Name="NextButton"
                     DockPanel.Dock="Right"
-                    Content="Sau"
+                    Content="{StaticResource GuideNextButton}"
                     Width="90"
                     Height="32"
                     Click="NextButton_Click" />

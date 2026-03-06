@@ -1,4 +1,5 @@
-using System.Windows;
+﻿using System.Windows;
+using PdfStampNgrokDesktop.Helpers;
 
 namespace PdfStampNgrokDesktop;
 
@@ -7,11 +8,21 @@ public partial class ConfirmUpdateWindow : Window
     public ConfirmUpdateWindow(string version, bool fromBackgroundCheck)
     {
         InitializeComponent();
-        var sourceText = fromBackgroundCheck ? "hệ thống phát hiện" : "bạn vừa kiểm tra";
+        var titleText = UiText.Format("UpdateWindowTitleTemplate", "Co ban cap nhat {0}", version);
+        var messageText = fromBackgroundCheck
+            ? UiText.Format(
+                "UpdateWindowMessageBackgroundTemplate",
+                "Da co phien ban moi ({0}) do he thong phat hien. Ban muon tai va cap nhat ngay bay gio khong?",
+                version)
+            : UiText.Format(
+                "UpdateWindowMessageManualTemplate",
+                "Da co phien ban moi ({0}) do ban vua kiem tra. Ban muon tai va cap nhat ngay bay gio khong?",
+                version);
+
         DataContext = new
         {
-            TitleText = $"Có bản cập nhật {version}",
-            MessageText = $"Đã có phiên bản mới ({version}) do {sourceText}. Bạn muốn tải và cập nhật ngay bây giờ không?",
+            TitleText = titleText,
+            MessageText = messageText,
         };
     }
 
