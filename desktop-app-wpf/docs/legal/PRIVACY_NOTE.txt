@@ -1,7 +1,7 @@
 PRIVACY NOTE
 ============
 
-Ngrok Sao Y Điện Tử PDF stores data locally on the user machine:
+Sao Y Điện Tử PDF stores data locally on the user machine:
 
 1) App config file
 - Path: %APPDATA%\PdfStampNgrokDesktop\app-config.json

@@ -16,5 +16,7 @@ public enum ErrorCode
     NgrokStoppedUnexpectedly = 3005,
     HealthCheckFailed = 3006,
     UpdateCheckFailed = 4001,
+    GoogleSheetSyncFailed = 5001,
+    GoogleSheetSyncNotConfigured = 5002,
     Unknown = 9000,
 }

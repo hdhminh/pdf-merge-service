@@ -29,6 +29,7 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <DockPanel Grid.Row="0" LastChildFill="False">
@@ -38,19 +39,52 @@
                        FontWeight="SemiBold"
                        Foreground="{StaticResource BrushPrimaryText}" />
 
-            <Border DockPanel.Dock="Right"
+            <Button DockPanel.Dock="Right"
+                    Width="34"
+                    Height="34"
+                    Margin="8,0,0,0"
+                    Background="#FFF6DF"
+                    BorderBrush="#E6D9AD"
+                    Foreground="#8A6718"
+                    BorderThickness="1"
+                    FontSize="15"
+                    FontWeight="Bold"
+                    Content="?"
+                    Padding="0"
+                    VerticalAlignment="Center"
+                    ToolTip="Hướng dẫn từng bước"
+                    Click="HelpButton_Click">
+                <Button.Template>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="3">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center" />
+                        </Border>
+                    </ControlTemplate>
+                </Button.Template>
+            </Button>
+
+            <Border x:Name="LinkStateBadge"
+                    DockPanel.Dock="Right"
+                    Height="34"
                     Background="#FFF6DF"
                     BorderBrush="#E6D9AD"
                     BorderThickness="1"
                     CornerRadius="3"
                     Padding="8,4"
                     VerticalAlignment="Center">
-                <StackPanel Orientation="Horizontal">
+                <StackPanel Orientation="Horizontal"
+                            VerticalAlignment="Center">
                     <Ellipse Width="10"
                              Height="10"
                              Margin="0,0,6,0"
+                             VerticalAlignment="Center"
                              Fill="{Binding BadgeIndicator, Converter={StaticResource LinkIndicatorToBrushConverter}}" />
                     <TextBlock Text="{Binding BadgeText}"
+                               VerticalAlignment="Center"
                                Foreground="#8A6718"
                                FontWeight="SemiBold" />
                 </StackPanel>
@@ -155,7 +189,7 @@
                                    Foreground="#8A9AA7"
                                    VerticalAlignment="Center"
                                    IsHitTestVisible="False"
-                                   Text="Nhập ngrok authtoken">
+                                   Text="Nhập AuthToken">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock">
                                     <Setter Property="Visibility" Value="Collapsed" />
@@ -243,19 +277,110 @@
             </Grid>
         </GroupBox>
 
-        <GroupBox Grid.Row="4" Header="Trạng thái">
+        <GroupBox Grid.Row="4" Header="Google Sheet">
+            <GroupBox.Style>
+                <Style TargetType="GroupBox">
+                    <Setter Property="Visibility" Value="Collapsed" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsDeveloperGoogleSheetPanelVisible}" Value="True">
+                            <Setter Property="Visibility" Value="Visible" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </GroupBox.Style>
+            <Grid Margin="4">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="8" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="8" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <Grid Grid.Row="0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="2*" />
+                        <ColumnDefinition Width="6" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <Grid Grid.Column="0">
+                        <TextBox x:Name="GoogleSheetIdTextBox"
+                                 Text="{Binding GoogleSheetId, UpdateSourceTrigger=PropertyChanged}"
+                                 ToolTip="Chỉ nhập Google Sheet ID (không cần dán full link)" />
+                        <TextBlock Margin="10,0,0,0"
+                                   Foreground="#8A9AA7"
+                                   VerticalAlignment="Center"
+                                   IsHitTestVisible="False"
+                                   Text="Google Sheet ID (không cần link)">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Text, ElementName=GoogleSheetIdTextBox}" Value="">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </Grid>
+
+                    <Grid Grid.Column="2">
+                        <TextBox x:Name="GoogleSheetCellTextBox"
+                                 Text="{Binding GoogleSheetTargetCell, UpdateSourceTrigger=PropertyChanged}"
+                                 ToolTip="Ô đích để dán endpoint (vd: CONFIG!B32)" />
+                        <TextBlock Margin="10,0,0,0"
+                                   Foreground="#8A9AA7"
+                                   VerticalAlignment="Center"
+                                   IsHitTestVisible="False"
+                                   Text="Ô đích (vd: CONFIG!B32)">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Text, ElementName=GoogleSheetCellTextBox}" Value="">
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </Grid>
+                </Grid>
+
+                <Grid Grid.Row="2">
+                    <TextBox x:Name="GoogleSheetWebhookTextBox"
+                             Text="{Binding GoogleSheetWebhookUrl, UpdateSourceTrigger=PropertyChanged}"
+                             ToolTip="Webhook URL Apps Script dạng .../exec" />
+                    <TextBlock Margin="10,0,0,0"
+                               Foreground="#8A9AA7"
+                               VerticalAlignment="Center"
+                               IsHitTestVisible="False"
+                               Text="Webhook URL (vd: https://script.google.com/macros/s/.../exec)">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Visibility" Value="Collapsed" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Text, ElementName=GoogleSheetWebhookTextBox}" Value="">
+                                        <Setter Property="Visibility" Value="Visible" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </Grid>
+
+                <TextBlock Grid.Row="4"
+                           Foreground="#667085"
+                           TextWrapping="Wrap"
+                           Text="Khi bấm 'Tạo link', app sẽ tự gọi backend để cập nhật endpoint vào ô chỉ định bằng webhook ở trên." />
+            </Grid>
+        </GroupBox>
+
+        <GroupBox Grid.Row="5" Header="Trạng thái">
             <StackPanel Margin="8,6,8,8">
                 <TextBlock Text="{Binding RealtimeState}" FontWeight="SemiBold" Foreground="{StaticResource BrushPrimaryText}" />
                 <TextBlock Text="{Binding StatusMessage}" Margin="0,4,0,0" TextWrapping="Wrap" />
-                <WrapPanel Margin="0,10,0,0">
-                    <Button Content="HDSD"
-                            MinWidth="96"
-                            Margin="0,0,8,0"
-                            Command="{Binding OpenGuideCommand}" />
-                    <Button Content="Gui log ho tro"
-                            MinWidth="126"
-                            Command="{Binding PrepareSupportLogCommand}" />
-                </WrapPanel>
             </StackPanel>
         </GroupBox>
     </Grid>

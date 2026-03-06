@@ -29,7 +29,12 @@ npm install
 ```env
 PORT=3000
 MAX_FILE_SIZE_BYTES=20971520
+GOOGLE_SHEET_SYNC_URL=
+GOOGLE_SHEET_SYNC_API_KEY=
+GOOGLE_SHEET_SYNC_TIMEOUT_MS=12000
 ```
+
+`GOOGLE_SHEET_SYNC_URL` is optional if desktop app sends `webhookUrl` in request payload.
 
 Optional font override:
 
@@ -208,6 +213,32 @@ Overlap example:
 Response:
 
 - HTTP 200 with `application/pdf` binary
+
+### `POST /api/google-sheet/set-endpoint`
+
+Use this API to update Apps Script config cell automatically after ngrok endpoint is generated.
+
+Request:
+
+```json
+{
+  "sheetId": "1abcDEF.....",
+  "targetA1": "CONFIG!B32",
+  "webhookUrl": "https://script.google.com/macros/s/.../exec",
+  "endpoint": "https://xxxx.ngrok-free.app/api/pdf/stamp"
+}
+```
+
+Notes:
+
+- `sheetId` can be either plain Sheet ID or full Google Sheet URL.
+- `targetA1` is optional, default is `CONFIG!B32`.
+- `webhookUrl` is optional. If omitted, backend uses `GOOGLE_SHEET_SYNC_URL` from env.
+- If `GOOGLE_SHEET_SYNC_API_KEY` is set, backend sends it as `x-api-key` header.
+
+Response:
+
+- `success: true` when upstream sync API accepts the update.
 
 ## Error format
 

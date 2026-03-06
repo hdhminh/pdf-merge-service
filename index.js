@@ -1,4 +1,6 @@
 const express = require("express");
+const http = require("http");
+const https = require("https");
 const multer = require("multer");
 const { stampPdf, toPdfBytes } = require("./pdfStamp");
 
@@ -7,6 +9,10 @@ app.use(express.json({ limit: "50mb" }));
 
 const PORT = Number(process.env.PORT) || 3000;
 const MAX_FILE_SIZE = Number(process.env.MAX_FILE_SIZE_BYTES) || 20 * 1024 * 1024;
+const GOOGLE_SHEET_SYNC_URL = trimValue(process.env.GOOGLE_SHEET_SYNC_URL);
+const GOOGLE_SHEET_SYNC_API_KEY = trimValue(process.env.GOOGLE_SHEET_SYNC_API_KEY);
+const GOOGLE_SHEET_SYNC_TIMEOUT_MS =
+  Number(process.env.GOOGLE_SHEET_SYNC_TIMEOUT_MS) || 25000;
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: MAX_FILE_SIZE },
@@ -61,6 +67,97 @@ function parseOptionalJson(value) {
   } catch (_err) {
     return {};
   }
+}
+
+function normalizeGoogleSheetId(value) {
+  const trimmed = trimValue(value);
+  if (!trimmed) {
+    return "";
+  }
+
+  const marker = "/spreadsheets/d/";
+  const markerIndex = trimmed.toLowerCase().indexOf(marker);
+  if (markerIndex < 0) {
+    return trimmed;
+  }
+
+  const start = markerIndex + marker.length;
+  if (start >= trimmed.length) {
+    return trimmed;
+  }
+
+  const slashIndex = trimmed.indexOf("/", start);
+  return (slashIndex > -1 ? trimmed.slice(start, slashIndex) : trimmed.slice(start)).trim();
+}
+
+function normalizeTargetA1(value) {
+  const trimmed = trimValue(value);
+  if (!trimmed) {
+    return "CONFIG!B32";
+  }
+
+  return trimmed.includes("!") ? trimmed : `CONFIG!${trimmed}`;
+}
+
+function tryParseJson(raw) {
+  if (!raw || typeof raw !== "string") {
+    return null;
+  }
+
+  try {
+    return JSON.parse(raw);
+  } catch (_err) {
+    return null;
+  }
+}
+
+function postJson(targetUrl, payload, headers = {}, timeoutMs = 12000) {
+  return new Promise((resolve, reject) => {
+    let parsedUrl;
+    try {
+      parsedUrl = new URL(targetUrl);
+    } catch (err) {
+      reject(err);
+      return;
+    }
+
+    const body = JSON.stringify(payload || {});
+    const isHttps = parsedUrl.protocol === "https:";
+    const transport = isHttps ? https : http;
+
+    const req = transport.request(
+      {
+        protocol: parsedUrl.protocol,
+        hostname: parsedUrl.hostname,
+        port: parsedUrl.port || (isHttps ? 443 : 80),
+        path: `${parsedUrl.pathname}${parsedUrl.search}`,
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Content-Length": Buffer.byteLength(body),
+          ...headers,
+        },
+      },
+      (res) => {
+        const chunks = [];
+        res.on("data", (chunk) => chunks.push(chunk));
+        res.on("end", () => {
+          resolve({
+            statusCode: Number(res.statusCode) || 0,
+            body: Buffer.concat(chunks).toString("utf8"),
+          });
+        });
+      },
+    );
+
+    req.setTimeout(timeoutMs, () => {
+      req.destroy(new Error("upstream timeout"));
+    });
+
+    req.on("error", reject);
+    req.write(body);
+    req.end();
+  });
 }
 
 function validatePdfBuffer(buffer) {
@@ -149,6 +246,122 @@ app.post("/api/pdf/stamp", upload.single("file"), async (req, res, next) => {
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename="${finalName}"`);
     res.send(Buffer.from(stampedBytes));
+  } catch (err) {
+    next(err);
+  }
+});
+
+app.post("/api/google-sheet/set-endpoint", async (req, res, next) => {
+  try {
+    const sheetId = normalizeGoogleSheetId(req.body?.sheetId);
+    const targetA1 = normalizeTargetA1(req.body?.targetA1);
+    const webhookUrl = trimValue(req.body?.webhookUrl) || GOOGLE_SHEET_SYNC_URL;
+    const endpoint = trimValue(req.body?.endpoint);
+    const webhookHost = (() => {
+      try {
+        return new URL(webhookUrl).host;
+      } catch (_err) {
+        return "invalid-webhook-url";
+      }
+    })();
+
+    console.info("[sheet-sync] request", {
+      sheetId,
+      targetA1,
+      webhookHost,
+      endpoint,
+    });
+
+    if (!sheetId) {
+      throw createError(400, "MISSING_SHEET_ID", "sheetId is required.");
+    }
+
+    if (!endpoint) {
+      throw createError(400, "MISSING_ENDPOINT", "endpoint is required.");
+    }
+
+    if (!webhookUrl) {
+      throw createError(
+        503,
+        "GOOGLE_SHEET_SYNC_NOT_CONFIGURED",
+        "Google Sheet sync API URL is not configured on backend.",
+      );
+    }
+
+    const upstreamHeaders = {};
+    if (GOOGLE_SHEET_SYNC_API_KEY) {
+      upstreamHeaders["x-api-key"] = GOOGLE_SHEET_SYNC_API_KEY;
+    }
+
+    let upstream;
+    try {
+      upstream = await postJson(
+        webhookUrl,
+        {
+          sheetId,
+          targetA1,
+          endpoint,
+        },
+        upstreamHeaders,
+        GOOGLE_SHEET_SYNC_TIMEOUT_MS,
+      );
+    } catch (upstreamErr) {
+      const upstreamMessage = String(upstreamErr?.message || "Upstream request failed.");
+      const isTimeout = upstreamMessage.toLowerCase().includes("timeout");
+      throw createError(
+        isTimeout ? 504 : 502,
+        "GOOGLE_SHEET_SYNC_FAILED",
+        isTimeout ? "upstream timeout" : upstreamMessage,
+      );
+    }
+
+    const parsed = tryParseJson(upstream.body);
+    if (upstream.statusCode < 200 || upstream.statusCode >= 300) {
+      const upstreamMessage =
+        (parsed && typeof parsed.message === "string" && parsed.message.trim()) ||
+        `Upstream returned status ${upstream.statusCode}.`;
+      throw createError(502, "GOOGLE_SHEET_SYNC_FAILED", upstreamMessage);
+    }
+
+    if (!parsed || typeof parsed !== "object") {
+      throw createError(
+        502,
+        "GOOGLE_SHEET_SYNC_FAILED",
+        "Upstream response is not valid JSON.",
+      );
+    }
+
+    if (parsed.success !== true) {
+      const upstreamMessage =
+        (typeof parsed.message === "string" && parsed.message.trim()) ||
+        "Upstream returned success=false.";
+      throw createError(502, "GOOGLE_SHEET_SYNC_FAILED", upstreamMessage);
+    }
+
+    const upstreamWrittenValue = trimValue(parsed.writtenValue);
+    if (upstreamWrittenValue && upstreamWrittenValue !== endpoint) {
+      throw createError(
+        502,
+        "GOOGLE_SHEET_SYNC_FAILED",
+        `writtenValue mismatch. expected='${endpoint}' actual='${upstreamWrittenValue}'`,
+      );
+    }
+
+    console.info("[sheet-sync] success", {
+      sheetId,
+      targetA1,
+      endpoint,
+      writtenValue: upstreamWrittenValue || "",
+    });
+
+    res.json({
+      success: true,
+      sheetId,
+      targetA1,
+      endpoint,
+      webhookUrl,
+      upstream: parsed || undefined,
+    });
   } catch (err) {
     next(err);
   }

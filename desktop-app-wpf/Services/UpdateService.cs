@@ -47,8 +47,6 @@ public sealed class UpdateService : IUpdateService
                 return Result<UpdateManifest?>.Ok(null, "Da la phien ban moi nhat.");
             }
 
-            await manager.DownloadUpdatesAsync(updateInfo, null, cancellationToken);
-
             var target = updateInfo.TargetFullRelease;
             var manifest = new UpdateManifest
             {
@@ -57,9 +55,7 @@ public sealed class UpdateService : IUpdateService
                 Notes = target.NotesMarkdown ?? string.Empty,
             };
 
-            Log.Information("Update downloaded. Applying and restarting to version {Version}.", manifest.Version);
-            manager.ApplyUpdatesAndRestart(updateInfo);
-            return Result<UpdateManifest?>.Ok(manifest, "Dang ap dung cap nhat.");
+            return Result<UpdateManifest?>.Ok(manifest, "Co ban cap nhat moi.");
         }
         catch (OperationCanceledException)
         {
@@ -74,6 +70,72 @@ public sealed class UpdateService : IUpdateService
         {
             Log.Warning(ex, "Auto-update check/apply failed.");
             return Result<UpdateManifest?>.Fail(ErrorCode.UpdateCheckFailed, $"Loi auto-update: {ex.Message}");
+        }
+    }
+
+    public async Task<Result<UpdateManifest?>> ApplyUpdateAsync(UpdateConfig updateConfig, string currentVersion, CancellationToken cancellationToken = default)
+    {
+        if (!updateConfig.Enabled)
+        {
+            return Result<UpdateManifest?>.Ok(null, "Auto-update dang tat.");
+        }
+
+        var repoUrl = ResolveRepoUrl(updateConfig);
+        if (string.IsNullOrWhiteSpace(repoUrl))
+        {
+            return Result<UpdateManifest?>.Ok(null, "Chua cau hinh GitHub repo cho auto-update.");
+        }
+
+        if (!Uri.TryCreate(repoUrl, UriKind.Absolute, out _))
+        {
+            return Result<UpdateManifest?>.Ok(null, "Bo qua auto-update vi URL repo khong hop le.");
+        }
+
+        var includePrerelease = updateConfig.Channel == UpdateChannel.Beta;
+
+        try
+        {
+            var source = new GithubSource(repoUrl, string.Empty, includePrerelease);
+            var manager = new UpdateManager(source);
+
+            if (!manager.IsInstalled)
+            {
+                Log.Information("Skip apply update because app is not Velopack-installed.");
+                return Result<UpdateManifest?>.Ok(null, "Ban dev/publish roi, khong the auto-cap nhat.");
+            }
+
+            var updateInfo = await manager.CheckForUpdatesAsync();
+            if (updateInfo is null)
+            {
+                return Result<UpdateManifest?>.Ok(null, "Da la phien ban moi nhat.");
+            }
+
+            await manager.DownloadUpdatesAsync(updateInfo, null, cancellationToken);
+            var target = updateInfo.TargetFullRelease;
+            var manifest = new UpdateManifest
+            {
+                Version = target.Version?.ToString() ?? currentVersion,
+                DownloadUrl = repoUrl,
+                Notes = target.NotesMarkdown ?? string.Empty,
+            };
+
+            Log.Information("Update downloaded. Applying and restarting to version {Version}.", manifest.Version);
+            manager.ApplyUpdatesAndRestart(updateInfo);
+            return Result<UpdateManifest?>.Ok(manifest, "Dang ap dung cap nhat.");
+        }
+        catch (OperationCanceledException)
+        {
+            return Result<UpdateManifest?>.Ok(null, "Da huy cap nhat.");
+        }
+        catch (HttpRequestException ex)
+        {
+            Log.Information(ex, "Auto-update feed not available during apply. Skip this run.");
+            return Result<UpdateManifest?>.Ok(null, "Khong co feed cap nhat hoac chua release.");
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Auto-update apply failed.");
+            return Result<UpdateManifest?>.Fail(ErrorCode.UpdateCheckFailed, $"Loi cap nhat: {ex.Message}");
         }
     }
 

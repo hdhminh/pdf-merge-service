@@ -23,6 +23,15 @@ public sealed class UiConfig
     public bool AutoCopyOnGenerate { get; set; }
 }
 
+public sealed class GoogleSheetConfig
+{
+    public string SheetId { get; set; } = string.Empty;
+
+    public string TargetCellA1 { get; set; } = "CONFIG!B32";
+
+    public string WebhookUrl { get; set; } = string.Empty;
+}
+
 public sealed class SecurityConfig
 {
     public int AutoLockMinutes { get; set; } = 10;
@@ -62,6 +71,8 @@ public sealed class AppConfig
     public NgrokConfig Ngrok { get; set; } = new();
 
     public UiConfig Ui { get; set; } = new();
+
+    public GoogleSheetConfig GoogleSheet { get; set; } = new();
 
     public SecurityConfig Security { get; set; } = new();
 

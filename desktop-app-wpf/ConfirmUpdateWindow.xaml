@@ -1,0 +1,54 @@
+<Window x:Class="PdfStampNgrokDesktop.ConfirmUpdateWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Cập nhật phần mềm"
+        Width="430"
+        Height="210"
+        MinWidth="430"
+        MinHeight="210"
+        MaxWidth="430"
+        MaxHeight="210"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner"
+        WindowStyle="ToolWindow"
+        ShowInTaskbar="False"
+        Background="#F7F9FC"
+        FontFamily="Segoe UI"
+        FontSize="13">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="10" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="12" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0"
+                   Text="{Binding TitleText}"
+                   FontSize="15"
+                   FontWeight="SemiBold"
+                   Foreground="#0F2C3F" />
+
+        <TextBlock Grid.Row="2"
+                   Text="{Binding MessageText}"
+                   TextWrapping="Wrap"
+                   Foreground="#334E68" />
+
+        <StackPanel Grid.Row="4"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right">
+            <Button Width="100"
+                    Height="32"
+                    Margin="0,0,8,0"
+                    Content="Để sau"
+                    Click="LaterButton_Click"
+                    IsCancel="True" />
+            <Button Width="100"
+                    Height="32"
+                    Content="Cập nhật"
+                    Click="UpdateButton_Click"
+                    IsDefault="True" />
+        </StackPanel>
+    </Grid>
+</Window>

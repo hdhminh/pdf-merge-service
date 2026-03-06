@@ -1,7 +1,7 @@
 THIRD PARTY NOTICES
 ===================
 
-Product: Ngrok Sao Y Điện Tử PDF
+Product: Sao Y Điện Tử PDF
 Version: 1.3.0
 
 This product uses third-party components:

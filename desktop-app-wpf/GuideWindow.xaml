@@ -1,0 +1,101 @@
+﻿<Window x:Class="PdfStampNgrokDesktop.GuideWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:nav="clr-namespace:System.Windows.Navigation;assembly=PresentationFramework"
+        Title="Hướng dẫn sử dụng"
+        Height="760"
+        Width="980"
+        MinHeight="700"
+        MinWidth="900"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="CanMinimize"
+        Background="{StaticResource BrushBackground}">
+    <Grid Margin="14">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="8" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="10" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <DockPanel Grid.Row="0" LastChildFill="False">
+            <TextBlock x:Name="StepIndexText"
+                       DockPanel.Dock="Left"
+                       FontSize="15"
+                       FontWeight="SemiBold"
+                       Foreground="{StaticResource BrushPrimaryText}"
+                       VerticalAlignment="Center" />
+            <Button DockPanel.Dock="Right"
+                    Content="Đóng"
+                    Width="86"
+                    Height="30"
+                    Click="CloseButton_Click" />
+        </DockPanel>
+
+        <Border Grid.Row="2"
+                Padding="14"
+                CornerRadius="4"
+                BorderThickness="1"
+                BorderBrush="#D6DEE7"
+                Background="#FFFFFF">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="460" />
+                    <RowDefinition Height="12" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <Border Grid.Row="0"
+                        BorderThickness="1"
+                        BorderBrush="#D6DEE7"
+                        CornerRadius="4"
+                        Background="#F7FAFC">
+                    <Image x:Name="StepImage"
+                           Margin="4"
+                           Stretch="Uniform" />
+                </Border>
+
+                <StackPanel Grid.Row="2">
+                    <TextBlock x:Name="StepTitleText"
+                               FontSize="20"
+                               FontWeight="SemiBold"
+                               Foreground="{StaticResource BrushPrimaryText}"
+                               TextWrapping="Wrap" />
+
+                    <TextBlock x:Name="StepLinkBlock"
+                               Margin="0,10,0,0"
+                               FontSize="17"
+                               Visibility="Collapsed">
+                        <Run Text="Link mở trực tiếp: " />
+                        <Hyperlink x:Name="StepLinkHyperlink" RequestNavigate="StepLinkHyperlink_RequestNavigate">
+                            <Run x:Name="StepLinkRun" />
+                        </Hyperlink>
+                    </TextBlock>
+
+                    <TextBlock x:Name="StepBodyText"
+                               Margin="0,10,0,0"
+                               FontSize="19"
+                               TextWrapping="Wrap"
+                               Foreground="{StaticResource BrushPrimaryText}"
+                               LineHeight="28" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <DockPanel Grid.Row="4" LastChildFill="False">
+            <Button x:Name="PrevButton"
+                    DockPanel.Dock="Left"
+                    Content="Trước"
+                    Width="90"
+                    Height="32"
+                    Click="PrevButton_Click" />
+            <Button x:Name="NextButton"
+                    DockPanel.Dock="Right"
+                    Content="Sau"
+                    Width="90"
+                    Height="32"
+                    Click="NextButton_Click" />
+        </DockPanel>
+    </Grid>
+</Window>

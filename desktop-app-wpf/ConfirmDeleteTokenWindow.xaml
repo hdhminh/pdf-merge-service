@@ -1,0 +1,61 @@
+<Window x:Class="PdfStampNgrokDesktop.ConfirmDeleteTokenWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Xác nhận"
+        Width="360"
+        Height="180"
+        MinWidth="360"
+        MinHeight="180"
+        MaxWidth="360"
+        MaxHeight="180"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner"
+        WindowStyle="ToolWindow"
+        ShowInTaskbar="False"
+        Background="#F7F9FC"
+        FontFamily="Segoe UI"
+        FontSize="13">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="10" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="12" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Orientation="Horizontal">
+            <TextBlock Text="⚠"
+                       FontSize="18"
+                       Margin="0,0,8,0"
+                       VerticalAlignment="Center"
+                       Foreground="#B35D00" />
+            <TextBlock Text="Xóa token đã chọn?"
+                       FontSize="16"
+                       FontWeight="SemiBold"
+                       Foreground="#0F2C3F"
+                       VerticalAlignment="Center" />
+        </StackPanel>
+
+        <TextBlock Grid.Row="2"
+                   Text="Thao tác này không thể hoàn tác."
+                   TextWrapping="Wrap"
+                   Foreground="#334E68" />
+
+        <StackPanel Grid.Row="4"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right">
+            <Button Width="88"
+                    Height="32"
+                    Margin="0,0,8,0"
+                    Content="Không"
+                    Click="CancelButton_Click"
+                    IsCancel="True" />
+            <Button Width="88"
+                    Height="32"
+                    Content="Có"
+                    Click="ConfirmButton_Click"
+                    IsDefault="True" />
+        </StackPanel>
+    </Grid>
+</Window>

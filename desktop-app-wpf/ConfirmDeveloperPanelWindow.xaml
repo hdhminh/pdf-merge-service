@@ -1,0 +1,62 @@
+<Window x:Class="PdfStampNgrokDesktop.ConfirmDeveloperPanelWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Xác nhận"
+        Width="360"
+        Height="205"
+        MinWidth="360"
+        MinHeight="205"
+        MaxWidth="360"
+        MaxHeight="205"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterOwner"
+        WindowStyle="ToolWindow"
+        ShowInTaskbar="False"
+        Background="#F7F9FC"
+        FontFamily="Segoe UI"
+        FontSize="13">
+    <Grid Margin="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="6" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="8" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="12" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <TextBlock Grid.Row="0"
+                   Text="Nhập mật mã:"
+                   Foreground="#0F2C3F"
+                   FontSize="14"
+                   FontWeight="SemiBold" />
+
+        <TextBlock Grid.Row="2"
+                   Text="Đây là tính năng nhà phát triển."
+                   Foreground="#667085"
+                   FontSize="12" />
+
+        <PasswordBox x:Name="PasswordInput"
+                     Grid.Row="4"
+                     Height="32"
+                     Padding="8,4"
+                     VerticalContentAlignment="Center" />
+
+        <StackPanel Grid.Row="6"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right">
+            <Button Width="88"
+                    Height="32"
+                    Margin="0,0,8,0"
+                    Content="Hủy"
+                    Click="CancelButton_Click"
+                    IsCancel="True" />
+            <Button Width="88"
+                    Height="32"
+                    Content="Mở"
+                    Click="ConfirmButton_Click"
+                    IsDefault="True" />
+        </StackPanel>
+    </Grid>
+</Window>

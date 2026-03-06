@@ -109,6 +109,11 @@ public sealed class MainViewModelFlowTests
         {
             return Task.FromResult(IsRunning);
         }
+
+        public Task<Result> SyncGoogleSheetEndpointAsync(int port, string sheetId, string targetCellA1, string webhookUrl, string endpointUrl, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(Result.Ok());
+        }
     }
 
     private sealed class FakeNgrokService : INgrokService
@@ -175,6 +180,11 @@ public sealed class MainViewModelFlowTests
     private sealed class FakeUpdateService : IUpdateService
     {
         public Task<Result<UpdateManifest?>> CheckForUpdatesAsync(UpdateConfig updateConfig, string currentVersion, CancellationToken cancellationToken = default)
+        {
+            return Task.FromResult(Result<UpdateManifest?>.Ok(null));
+        }
+
+        public Task<Result<UpdateManifest?>> ApplyUpdateAsync(UpdateConfig updateConfig, string currentVersion, CancellationToken cancellationToken = default)
         {
             return Task.FromResult(Result<UpdateManifest?>.Ok(null));
         }

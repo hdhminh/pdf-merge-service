@@ -13,4 +13,6 @@ public sealed class AppRuntimeOptions
     public int TokenRevealSeconds { get; set; } = 20;
 
     public int MemoryWarningMb { get; set; } = 700;
+
+    public bool ShowDeveloperGoogleSheetPanel { get; set; }
 }

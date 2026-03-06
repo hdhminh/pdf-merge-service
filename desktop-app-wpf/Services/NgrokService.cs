@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.IO;
 using System.Net.Http;
 using System.Text.Json;
 using PdfStampNgrokDesktop.Core;
@@ -43,6 +44,9 @@ public sealed class NgrokService : INgrokService
                     "Khong tim thay ngrok.exe. Vui long cap nhat app ban moi nhat hoac dat NGROK_CMD den duong dan ngrok.exe.");
             }
 
+            // Cleanup stale ngrok processes from the same bundled binary path.
+            KillStaleNgrokProcesses(command);
+
             var args = BuildArguments(backendPort, token, region);
 
             var psi = new ProcessStartInfo
@@ -59,47 +63,57 @@ public sealed class NgrokService : INgrokService
             LastError = null;
             _expectedStop = false;
 
-            _ngrokProcess = new Process
+            var process = new Process
             {
                 StartInfo = psi,
                 EnableRaisingEvents = true,
             };
+            _ngrokProcess = process;
 
-            _ngrokProcess.ErrorDataReceived += (_, e) =>
+            process.ErrorDataReceived += (_, e) =>
             {
                 if (string.IsNullOrWhiteSpace(e.Data))
                 {
                     return;
                 }
 
-                LastError = e.Data.Trim();
+                var line = e.Data.Trim();
+                if (!IsNgrokErrorLine(line))
+                {
+                    return;
+                }
+
+                LastError = NormalizeNgrokError(line);
                 Log.Warning("ngrok stderr: {Message}", LastError);
             };
 
-            _ngrokProcess.Exited += (_, _) =>
+            process.Exited += (_, _) =>
             {
                 if (_expectedStop)
                 {
                     return;
                 }
 
-                var code = _ngrokProcess?.ExitCode ?? -1;
-                LastError = $"ngrok dừng bất thường (code {code}).";
+                var code = process.ExitCode;
+                if (string.IsNullOrWhiteSpace(LastError))
+                {
+                    LastError = $"ngrok dừng bất thường (code {code}).";
+                }
                 Log.Warning("ngrok exited unexpectedly with code {Code}.", code);
                 Exited?.Invoke(this, code);
             };
 
-            _ngrokProcess.Start();
-            _ngrokProcess.BeginOutputReadLine();
-            _ngrokProcess.BeginErrorReadLine();
+            process.Start();
+            process.BeginOutputReadLine();
+            process.BeginErrorReadLine();
             await Task.Delay(350, cancellationToken);
 
-            if (_ngrokProcess.HasExited)
+            if (process.HasExited)
             {
                 return Result.Fail(ErrorCode.NgrokStartFailed, LastError ?? "Không thể chạy ngrok.");
             }
 
-            Log.Information("ngrok started with PID {Pid}.", _ngrokProcess.Id);
+            Log.Information("ngrok started with PID {Pid}.", process.Id);
             return Result.Ok();
         }
         catch (Exception ex)
@@ -111,29 +125,38 @@ public sealed class NgrokService : INgrokService
 
     public async Task<Result> StopAsync()
     {
-        if (_ngrokProcess is null)
+        if (_ngrokProcess is not null)
         {
-            LastError = null;
-            return Result.Ok();
+            try
+            {
+                if (!_ngrokProcess.HasExited)
+                {
+                    _expectedStop = true;
+                    _ngrokProcess.Kill(entireProcessTree: true);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Stop ngrok threw an exception.");
+            }
+
+            await Task.Delay(120);
+            _ngrokProcess.Dispose();
+            _ngrokProcess = null;
+            _expectedStop = false;
         }
 
         try
         {
-            if (!_ngrokProcess.HasExited)
-            {
-                _expectedStop = true;
-                _ngrokProcess.Kill(entireProcessTree: true);
-            }
+            var backendRoot = PathResolver.ResolveRepoRoot();
+            var command = PathResolver.ResolveNgrokCommand(backendRoot);
+            KillStaleNgrokProcesses(command);
         }
         catch (Exception ex)
         {
-            Log.Warning(ex, "Stop ngrok threw an exception.");
+            Log.Warning(ex, "Cleanup stale ngrok processes failed.");
         }
 
-        await Task.Delay(120);
-        _ngrokProcess.Dispose();
-        _ngrokProcess = null;
-        _expectedStop = false;
         LastError = null;
         Log.Information("ngrok stopped.");
         return Result.Ok();
@@ -176,6 +199,7 @@ public sealed class NgrokService : INgrokService
                     continue;
                 }
 
+                LastError = null;
                 return Result<TunnelInfo?>.Ok(new TunnelInfo
                 {
                     PublicUrl = publicUrl,
@@ -203,6 +227,114 @@ public sealed class NgrokService : INgrokService
         }
 
         return args;
+    }
+
+    private static bool IsNgrokErrorLine(string line)
+    {
+        if (string.IsNullOrWhiteSpace(line))
+        {
+            return false;
+        }
+
+        var text = line.ToLowerInvariant();
+        if (text.Contains("lvl=eror") || text.Contains("lvl=error"))
+        {
+            return true;
+        }
+
+        if (text.Contains("invalid authtoken")
+            || text.Contains("authentication failed")
+            || text.Contains("failed")
+            || text.Contains("panic")
+            || text.Contains("cannot")
+            || text.Contains("unable"))
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    private static void KillStaleNgrokProcesses(string ngrokCommandPath)
+    {
+        var normalizedTarget = NormalizePath(ngrokCommandPath);
+        if (string.IsNullOrWhiteSpace(normalizedTarget))
+        {
+            return;
+        }
+
+        foreach (var process in Process.GetProcessesByName("ngrok"))
+        {
+            try
+            {
+                var processPath = string.Empty;
+                try
+                {
+                    processPath = process.MainModule?.FileName ?? string.Empty;
+                }
+                catch
+                {
+                    // Ignore inaccessible processes.
+                }
+
+                if (!string.Equals(NormalizePath(processPath), normalizedTarget, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                process.Kill(entireProcessTree: true);
+                process.WaitForExit(1000);
+                Log.Warning("Killed stale ngrok process PID {Pid}.", process.Id);
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Unable to kill stale ngrok process PID {Pid}.", process.Id);
+            }
+            finally
+            {
+                process.Dispose();
+            }
+        }
+    }
+
+    private static string NormalizePath(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path))
+        {
+            return string.Empty;
+        }
+
+        try
+        {
+            return Path.GetFullPath(path.Trim());
+        }
+        catch
+        {
+            return path.Trim();
+        }
+    }
+
+    private static string NormalizeNgrokError(string line)
+    {
+        if (string.IsNullOrWhiteSpace(line))
+        {
+            return "Không thể chạy ngrok.";
+        }
+
+        var text = line.ToLowerInvariant();
+        if (text.Contains("err_ngrok_108")
+            || text.Contains("1 simultaneous ngrok agent sessions")
+            || text.Contains("authentication failed: your account is limited to 1 simultaneous"))
+        {
+            return "Tài khoản ngrok đang chạy ở nơi khác (ERR_NGROK_108). Hãy tắt phiên ngrok cũ tại https://dashboard.ngrok.com/agents rồi bấm 'Tạo link' lại.";
+        }
+
+        if (text.Contains("already online") && text.Contains("endpoint"))
+        {
+            return "Domain ngrok đang online ở phiên khác. Hãy tắt endpoint cũ tại https://dashboard.ngrok.com/endpoints (hoặc agents) rồi bấm 'Tạo link' lại.";
+        }
+
+        return line;
     }
 
 }

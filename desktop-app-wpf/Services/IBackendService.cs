@@ -13,4 +13,12 @@ public interface IBackendService
     Task<Result> StopAsync();
 
     Task<bool> IsHealthyAsync(int port, CancellationToken cancellationToken = default);
+
+    Task<Result> SyncGoogleSheetEndpointAsync(
+        int port,
+        string sheetId,
+        string targetCellA1,
+        string webhookUrl,
+        string endpointUrl,
+        CancellationToken cancellationToken = default);
 }

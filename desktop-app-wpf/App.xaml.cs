@@ -30,6 +30,7 @@ public partial class App : Application
                 options.LogRetentionFileCount = 14;
                 options.TokenRevealSeconds = 20;
                 options.MemoryWarningMb = 700;
+                options.ShowDeveloperGoogleSheetPanel = ResolveDeveloperModeFlag();
             });
 
             serviceCollection.AddSingleton<ITokenStoreService, TokenStoreService>();
@@ -110,6 +111,29 @@ public partial class App : Application
             Log.Error(args.Exception, "Unobserved task exception.");
             args.SetObserved();
         };
+    }
+
+    private static bool ResolveDeveloperModeFlag()
+    {
+        var env = (Environment.GetEnvironmentVariable("PDFSTAMP_DEV_MODE") ?? string.Empty).Trim();
+        if (string.Equals(env, "1", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(env, "true", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(env, "yes", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var appDataFlag = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "PdfStampNgrokDesktop",
+            ".dev-mode");
+        if (File.Exists(appDataFlag))
+        {
+            return true;
+        }
+
+        var appBaseFlag = Path.Combine(AppContext.BaseDirectory, ".dev-mode");
+        return File.Exists(appBaseFlag);
     }
 
     private static string GetSupportContactText()

@@ -214,6 +214,14 @@ jobs:
       - name: Build signature-field tool
         run: dotnet build tools/signature-field-tool/SignatureFieldTool/SignatureFieldTool.csproj -c Release
 
+      - name: Clean signature-field publish output
+        shell: pwsh
+        run: |
+          $outDir = "tools/signature-field-tool/SignatureFieldTool/publish/win-x64"
+          if (Test-Path $outDir) {
+            Remove-Item -Path $outDir -Recurse -Force
+          }
+
       - name: Publish signature-field tool (self-contained)
         run: |
           dotnet publish tools/signature-field-tool/SignatureFieldTool/SignatureFieldTool.csproj `
@@ -266,7 +274,7 @@ jobs:
             --packVersion ${{ steps.meta.outputs.version }} `
             --packDir artifacts/publish/win-x64 `
             --mainExe PdfStampNgrokDesktop.exe `
-            --packTitle "Ngrok Sao Y Dien Tu PDF" `
+            --packTitle "Sao Y Dien Tu PDF" `
             --packAuthors "PDF Stamp Team" `
             --icon desktop-app-wpf/Assets/app.ico `
             --runtime win-x64 `

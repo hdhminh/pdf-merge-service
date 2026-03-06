@@ -6,4 +6,6 @@ namespace PdfStampNgrokDesktop.Services;
 public interface IUpdateService
 {
     Task<Result<UpdateManifest?>> CheckForUpdatesAsync(UpdateConfig updateConfig, string currentVersion, CancellationToken cancellationToken = default);
+
+    Task<Result<UpdateManifest?>> ApplyUpdateAsync(UpdateConfig updateConfig, string currentVersion, CancellationToken cancellationToken = default);
 }

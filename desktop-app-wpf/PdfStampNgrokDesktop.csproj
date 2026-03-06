@@ -8,8 +8,8 @@
     <UseWPF>true</UseWPF>
     <StartupObject>PdfStampNgrokDesktop.Program</StartupObject>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
-    <AssemblyTitle>Ngrok Sao Y Điện Tử PDF</AssemblyTitle>
-    <Product>Ngrok Sao Y Điện Tử PDF</Product>
+    <AssemblyTitle>Sao Y Điện Tử PDF</AssemblyTitle>
+    <Product>Sao Y Điện Tử PDF</Product>
     <Company>PDF Stamp Team</Company>
     <Version Condition="'$(Version)' == ''">1.3.0</Version>
     <FileVersion>$(Version)</FileVersion>
@@ -24,56 +24,64 @@
     <UpdateRepoUrl Condition="'$(UpdateRepoUrl)' == ''">https://github.com/your-org/your-repo</UpdateRepoUrl>
     <UpdateChannel Condition="'$(UpdateChannel)' == ''">stable</UpdateChannel>
   </PropertyGroup>
-
   <ItemGroup>
     <Resource Include="Assets\app.ico" />
     <Resource Include="Assets\logo.png" />
+    <Resource Include="Assets\guide-step-1.png" />
+    <Resource Include="Assets\guide-step-2.png" />
+    <Resource Include="Assets\guide-step-3.png" />
+    <Resource Include="Assets\guide-step-4.png" />
   </ItemGroup>
-
   <ItemGroup>
     <None Include="support-contact.txt">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>Always</CopyToPublishDirectory>
       <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
     </None>
-
-    <None Include="docs\HDSD.txt">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <CopyToPublishDirectory>Always</CopyToPublishDirectory>
-      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
-    </None>
-
     <None Include="..\index.js" Link="backend\index.js" Condition="Exists('..\index.js')">
       <CopyToPublishDirectory>Always</CopyToPublishDirectory>
       <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
     </None>
-
     <None Include="..\pdfStamp.js" Link="backend\pdfStamp.js" Condition="Exists('..\pdfStamp.js')">
       <CopyToPublishDirectory>Always</CopyToPublishDirectory>
       <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
     </None>
-
-    <None Include="..\node_modules\**\*" Link="backend\node_modules\%(RecursiveDir)%(Filename)%(Extension)" Condition="Exists('..\node_modules')">
+    <None Include="..\node_modules\**\*"
+          Exclude="..\node_modules\**\*.map;
+                   ..\node_modules\**\*.tsbuildinfo;
+                   ..\node_modules\**\test\**\*;
+                   ..\node_modules\**\tests\**\*;
+                   ..\node_modules\**\__tests__\**\*;
+                   ..\node_modules\**\doc\**\*;
+                   ..\node_modules\**\docs\**\*;
+                   ..\node_modules\**\example\**\*;
+                   ..\node_modules\**\examples\**\*;
+                   ..\node_modules\**\benchmark\**\*;
+                   ..\node_modules\**\benchmarks\**\*;
+                   ..\node_modules\**\.github\**\*;
+                   ..\node_modules\**\.vscode\**\*;
+                   ..\node_modules\**\.idea\**\*;
+                   ..\node_modules\**\coverage\**\*"
+          Link="backend\node_modules\%(RecursiveDir)%(Filename)%(Extension)"
+          Condition="Exists('..\node_modules')">
       <CopyToPublishDirectory>Always</CopyToPublishDirectory>
       <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
     </None>
-
     <None Include="..\bin\node-win-x64\**\*" Link="bin\node-win-x64\%(RecursiveDir)%(Filename)%(Extension)" Condition="Exists('..\bin\node-win-x64')">
       <CopyToPublishDirectory>Always</CopyToPublishDirectory>
       <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
     </None>
-
     <None Include="..\bin\win32-x64\ngrok.exe" Link="bin\win32-x64\ngrok.exe" Condition="Exists('..\bin\win32-x64\ngrok.exe')">
       <CopyToPublishDirectory>Always</CopyToPublishDirectory>
       <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
     </None>
-
-    <None Include="..\tools\signature-field-tool\SignatureFieldTool\publish\win-x64\**\*" Link="tools\signature-field-tool\SignatureFieldTool\publish\win-x64\%(RecursiveDir)%(Filename)%(Extension)" Condition="Exists('..\tools\signature-field-tool\SignatureFieldTool\publish\win-x64')">
+    <None Include="..\tools\signature-field-tool\SignatureFieldTool\publish\win-x64\SignatureFieldTool.exe"
+          Link="tools\signature-field-tool\SignatureFieldTool\publish\win-x64\SignatureFieldTool.exe"
+          Condition="Exists('..\tools\signature-field-tool\SignatureFieldTool\publish\win-x64\SignatureFieldTool.exe')">
       <CopyToPublishDirectory>Always</CopyToPublishDirectory>
       <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
     </None>
   </ItemGroup>
-
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.1" />
     <PackageReference Include="Microsoft.Extensions.Options" Version="8.0.2" />
@@ -81,7 +89,6 @@
     <PackageReference Include="Serilog.Sinks.File" Version="6.0.0" />
     <PackageReference Include="Velopack" Version="0.0.1298" />
   </ItemGroup>
-
   <ItemGroup>
     <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
       <_Parameter1>UpdateRepoUrl</_Parameter1>
@@ -92,12 +99,10 @@
       <_Parameter2>$(UpdateChannel)</_Parameter2>
     </AssemblyAttribute>
   </ItemGroup>
-
   <Target Name="ValidateBundledRuntimePayload" BeforeTargets="Publish" Condition="'$(ValidateBundledRuntimeOnPublish)' == 'true'">
     <Error Condition="!Exists('..\index.js')" Text="Publish blocked: missing backend file ..\index.js" />
     <Error Condition="!Exists('..\pdfStamp.js')" Text="Publish blocked: missing backend file ..\pdfStamp.js" />
     <Error Condition="!Exists('..\package.json')" Text="Publish blocked: missing backend file ..\package.json" />
-
     <Error Condition="!Exists('..\node_modules')" Text="Publish blocked: missing ..\node_modules. Run npm ci --omit=dev." />
     <Error Condition="!Exists('..\node_modules\express\package.json')" Text="Publish blocked: missing node module express." />
     <Error Condition="!Exists('..\node_modules\multer\package.json')" Text="Publish blocked: missing node module multer." />
@@ -105,7 +110,6 @@
     <Error Condition="!Exists('..\node_modules\@pdf-lib\fontkit\package.json')" Text="Publish blocked: missing node module @pdf-lib/fontkit." />
     <Error Condition="!Exists('..\node_modules\pdfjs-dist\package.json')" Text="Publish blocked: missing node module pdfjs-dist." />
     <Error Condition="!Exists('..\node_modules\pdfjs-dist\standard_fonts')" Text="Publish blocked: missing pdfjs-dist standard_fonts folder." />
-
     <Error Condition="!Exists('..\bin\node-win-x64\node.exe')" Text="Publish blocked: missing bundled Node runtime ..\bin\node-win-x64\node.exe." />
     <Error Condition="!Exists('..\bin\win32-x64\ngrok.exe')" Text="Publish blocked: missing bundled ngrok binary ..\bin\win32-x64\ngrok.exe." />
     <Error Condition="!Exists('..\tools\signature-field-tool\SignatureFieldTool\publish\win-x64\SignatureFieldTool.exe')" Text="Publish blocked: missing SignatureFieldTool.exe publish output." />

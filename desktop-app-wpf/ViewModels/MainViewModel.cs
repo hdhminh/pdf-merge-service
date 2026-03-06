@@ -1,7 +1,6 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
-using System.IO.Compression;
 using System.Reflection;
 using System.Windows;
 using System.Windows.Input;
@@ -38,17 +37,21 @@ public sealed class MainViewModel : ObservableObject
     private string _selectedProfileId = string.Empty;
     private string _newProfileName = string.Empty;
     private string _newProfileToken = string.Empty;
+    private string _googleSheetId = string.Empty;
+    private string _googleSheetTargetCell = "CONFIG!B32";
+    private string _googleSheetWebhookUrl = string.Empty;
     private bool _isRevealTokenInput;
     private bool _isSessionLocked;
     private bool _autoCopyOnGenerate;
     private string _stampUrl = string.Empty;
-    private string _statusMessage = "Sẵn sàng.";
-    private string _realtimeState = "Đã sẵn sàng";
+    private string _statusMessage = "Sáºµn sÃ ng.";
+    private string _realtimeState = "ÄÃ£ sáºµn sÃ ng";
     private string _copyButtonText = "Copy";
-    private string _badgeText = "Chưa có link";
+    private string _badgeText = "ChÆ°a cÃ³ link";
     private LinkIndicator _badgeIndicator = LinkIndicator.Idle;
     private UpdateChannel _selectedUpdateChannel = UpdateChannel.Stable;
-    private string _updateHint = "Kênh cập nhật: stable";
+    private string _updateHint = "KÃªnh cáº­p nháº­t: stable";
+    private bool _isDeveloperGoogleSheetPanelVisible;
 
     public MainViewModel(
         ITokenStoreService tokenStoreService,
@@ -64,6 +67,7 @@ public sealed class MainViewModel : ObservableObject
         _healthMonitorService = healthMonitorService;
         _updateService = updateService;
         _runtimeOptions = runtimeOptions.Value;
+        _isDeveloperGoogleSheetPanelVisible = _runtimeOptions.ShowDeveloperGoogleSheetPanel;
 
         Profiles = new ObservableCollection<ProfileItemViewModel>();
 
@@ -77,8 +81,7 @@ public sealed class MainViewModel : ObservableObject
         UnlockCommand = new RelayCommand(UnlockSession, () => IsSessionLocked);
         RestoreBackupCommand = new AsyncRelayCommand(RestoreBackupAsync, () => !_busy);
         CheckUpdateCommand = new AsyncRelayCommand(CheckUpdateAsync, () => !_busy);
-        OpenGuideCommand = new RelayCommand(OpenGuide, () => !_busy);
-        PrepareSupportLogCommand = new RelayCommand(PrepareSupportLogBundle, () => !_busy);
+        ToggleDeveloperPanelCommand = new RelayCommand(ToggleDeveloperPanel);
 
         UpdateChannels = Enum.GetValues<UpdateChannel>();
 
@@ -141,9 +144,7 @@ public sealed class MainViewModel : ObservableObject
 
     public ICommand CheckUpdateCommand { get; }
 
-    public ICommand OpenGuideCommand { get; }
-
-    public ICommand PrepareSupportLogCommand { get; }
+    public ICommand ToggleDeveloperPanelCommand { get; }
 
     public IReadOnlyList<UpdateChannel> UpdateChannels { get; }
 
@@ -167,6 +168,30 @@ public sealed class MainViewModel : ObservableObject
     {
         get => _newProfileToken;
         set => SetProperty(ref _newProfileToken, value);
+    }
+
+    public string GoogleSheetId
+    {
+        get => _googleSheetId;
+        set => SetProperty(ref _googleSheetId, value);
+    }
+
+    public string GoogleSheetTargetCell
+    {
+        get => _googleSheetTargetCell;
+        set => SetProperty(ref _googleSheetTargetCell, value);
+    }
+
+    public string GoogleSheetWebhookUrl
+    {
+        get => _googleSheetWebhookUrl;
+        set => SetProperty(ref _googleSheetWebhookUrl, value);
+    }
+
+    public bool IsDeveloperGoogleSheetPanelVisible
+    {
+        get => _isDeveloperGoogleSheetPanelVisible;
+        private set => SetProperty(ref _isDeveloperGoogleSheetPanelVisible, value);
     }
 
     public bool IsRevealTokenInput
@@ -255,7 +280,7 @@ public sealed class MainViewModel : ObservableObject
         {
             SetProperty(ref _selectedUpdateChannel, value);
             _config.Update.Channel = value;
-            UpdateHint = $"Kênh cập nhật: {value.ToString().ToLowerInvariant()}";
+            UpdateHint = $"KÃªnh cáº­p nháº­t: {value.ToString().ToLowerInvariant()}";
             _ = _tokenStoreService.SaveAsync(_config);
         }
     }
@@ -273,15 +298,15 @@ public sealed class MainViewModel : ObservableObject
             return;
         }
 
-        RealtimeState = "Đang kiểm tra";
-        StatusMessage = "Đang tải cấu hình...";
+        RealtimeState = "Äang kiá»ƒm tra";
+        StatusMessage = "Äang táº£i cáº¥u hÃ¬nh...";
 
         var loadResult = await _tokenStoreService.LoadAsync();
         if (!loadResult.IsSuccess || loadResult.Value is null)
         {
-            BadgeText = "Lỗi";
+            BadgeText = "Lá»—i";
             BadgeIndicator = LinkIndicator.Error;
-            RealtimeState = "Lỗi";
+            RealtimeState = "Lá»—i";
             StatusMessage = $"{loadResult.Code}: {loadResult.Message}";
             return;
         }
@@ -289,6 +314,9 @@ public sealed class MainViewModel : ObservableObject
         _config = loadResult.Value;
         _config.Ui.AutoCopyOnGenerate = false;
         AutoCopyOnGenerate = false;
+        GoogleSheetId = (_config.GoogleSheet?.SheetId ?? string.Empty).Trim();
+        GoogleSheetTargetCell = NormalizeGoogleSheetTargetCell(_config.GoogleSheet?.TargetCellA1);
+        GoogleSheetWebhookUrl = NormalizeGoogleSheetWebhookUrl(_config.GoogleSheet?.WebhookUrl);
         SelectedUpdateChannel = _config.Update.Channel;
         await _tokenStoreService.SaveAsync(_config);
         RefreshProfiles();
@@ -301,8 +329,8 @@ public sealed class MainViewModel : ObservableObject
         }
 
         _refreshTimer.Start();
-        RealtimeState = "Đã sẵn sàng";
-        StatusMessage = "Sẵn sàng. Chọn token rồi bấm 'Tạo link'.";
+        RealtimeState = "ÄÃ£ sáºµn sÃ ng";
+        StatusMessage = "Sáºµn sÃ ng. Chá»n token rá»“i báº¥m 'Táº¡o link'.";
         await RefreshHealthAsync();
         _ = CheckForUpdatesInBackgroundAsync();
         _initialized = true;
@@ -365,8 +393,8 @@ public sealed class MainViewModel : ObservableObject
         IsSessionLocked = true;
         IsRevealTokenInput = false;
         _revealTimer.Stop();
-        RealtimeState = "Đang kiểm tra";
-        StatusMessage = "Phiên đã tự khóa do không thao tác.";
+        RealtimeState = "Äang kiá»ƒm tra";
+        StatusMessage = "PhiÃªn Ä‘Ã£ tá»± khÃ³a do khÃ´ng thao tÃ¡c.";
         RaisePropertyChanged(nameof(CanShowLockBanner));
     }
 
@@ -374,8 +402,8 @@ public sealed class MainViewModel : ObservableObject
     {
         IsSessionLocked = false;
         _lastActivityUtc = DateTime.UtcNow;
-        RealtimeState = "Đã sẵn sàng";
-        StatusMessage = "Đã mở khóa phiên.";
+        RealtimeState = "ÄÃ£ sáºµn sÃ ng";
+        StatusMessage = "ÄÃ£ má»Ÿ khÃ³a phiÃªn.";
         RaisePropertyChanged(nameof(CanShowLockBanner));
     }
 
@@ -390,13 +418,13 @@ public sealed class MainViewModel : ObservableObject
         var name = (NewProfileName ?? string.Empty).Trim();
         if (string.IsNullOrWhiteSpace(token))
         {
-            SetUiError("Token không được để trống.", ErrorCode.InvalidInput);
+            SetUiError("Token khÃ´ng Ä‘Æ°á»£c Ä‘á»ƒ trá»‘ng.", ErrorCode.InvalidInput);
             return;
         }
 
         if (await TokenExistsAsync(token))
         {
-            SetUiError("Token này đã tồn tại.", ErrorCode.InvalidInput);
+            SetUiError("Token nÃ y Ä‘Ã£ tá»“n táº¡i.", ErrorCode.InvalidInput);
             return;
         }
 
@@ -408,8 +436,8 @@ public sealed class MainViewModel : ObservableObject
         }
 
         IsBusy = true;
-        RealtimeState = "Đang tạo";
-        StatusMessage = "Đang thêm token...";
+        RealtimeState = "Äang táº¡o";
+        StatusMessage = "Äang thÃªm token...";
 
         try
         {
@@ -436,8 +464,8 @@ public sealed class MainViewModel : ObservableObject
             NewProfileToken = string.Empty;
             IsRevealTokenInput = false;
             RefreshProfiles();
-            RealtimeState = "Đã sẵn sàng";
-            StatusMessage = "Đã thêm token.";
+            RealtimeState = "ÄÃ£ sáºµn sÃ ng";
+            StatusMessage = "ÄÃ£ thÃªm token.";
         }
         finally
         {
@@ -455,13 +483,13 @@ public sealed class MainViewModel : ObservableObject
 
         if (string.IsNullOrWhiteSpace(SelectedProfileId))
         {
-            SetUiError("Bạn chưa chọn token.", ErrorCode.InvalidInput);
+            SetUiError("Báº¡n chÆ°a chá»n token.", ErrorCode.InvalidInput);
             return;
         }
 
         IsBusy = true;
-        RealtimeState = "Đang kiểm tra";
-        StatusMessage = "Đang áp dụng token...";
+        RealtimeState = "Äang kiá»ƒm tra";
+        StatusMessage = "Äang Ã¡p dá»¥ng token...";
         try
         {
             _config.ActiveProfileId = SelectedProfileId;
@@ -475,8 +503,8 @@ public sealed class MainViewModel : ObservableObject
             await _ngrokService.StopAsync();
             _keepTunnelAlive = false;
             StampUrl = string.Empty;
-            RealtimeState = "Đã sẵn sàng";
-            StatusMessage = "Đã áp dụng token.";
+            RealtimeState = "ÄÃ£ sáºµn sÃ ng";
+            StatusMessage = "ÄÃ£ Ã¡p dá»¥ng token.";
         }
         finally
         {
@@ -494,19 +522,23 @@ public sealed class MainViewModel : ObservableObject
 
         if (string.IsNullOrWhiteSpace(SelectedProfileId))
         {
-            SetUiError("Bạn chưa chọn token để xóa.", ErrorCode.InvalidInput);
+            SetUiError("Báº¡n chÆ°a chá»n token Ä‘á»ƒ xÃ³a.", ErrorCode.InvalidInput);
             return;
         }
 
-        var result = MessageBox.Show("Xóa token đã chọn?", "Xác nhận", MessageBoxButton.YesNo, MessageBoxImage.Warning);
-        if (result != MessageBoxResult.Yes)
+        var confirmDialog = new ConfirmDeleteTokenWindow
+        {
+            Owner = Application.Current?.MainWindow,
+        };
+        var confirmed = confirmDialog.ShowDialog() == true;
+        if (!confirmed)
         {
             return;
         }
 
         IsBusy = true;
-        RealtimeState = "Đang kiểm tra";
-        StatusMessage = "Đang xóa token...";
+        RealtimeState = "Äang kiá»ƒm tra";
+        StatusMessage = "Äang xÃ³a token...";
         try
         {
             _config.Profiles.RemoveAll(x => x.Id == SelectedProfileId);
@@ -523,9 +555,9 @@ public sealed class MainViewModel : ObservableObject
             StampUrl = string.Empty;
             RefreshProfiles();
             StatusMessage = _config.Profiles.Count == 0
-                ? "Đã xóa hết token."
-                : "Đã xóa token.";
-            RealtimeState = "Đã sẵn sàng";
+                ? "ÄÃ£ xÃ³a háº¿t token."
+                : "ÄÃ£ xÃ³a token.";
+            RealtimeState = "ÄÃ£ sáºµn sÃ ng";
         }
         finally
         {
@@ -549,8 +581,8 @@ public sealed class MainViewModel : ObservableObject
         }
 
         IsBusy = true;
-        RealtimeState = "Đang tạo";
-        StatusMessage = "Đang khởi động backend và ngrok...";
+        RealtimeState = "Äang táº¡o";
+        StatusMessage = "Äang khá»Ÿi Ä‘á»™ng backend vÃ  ngrok...";
 
         try
         {
@@ -564,6 +596,7 @@ public sealed class MainViewModel : ObservableObject
             var startNgrok = await _ngrokService.StartAsync(_config.Backend.Port, tokenResult.Value, _config.Ngrok.Region, restart: false);
             if (!startNgrok.IsSuccess)
             {
+                _keepTunnelAlive = false;
                 SetUiError(startNgrok.Message, startNgrok.Code);
                 return;
             }
@@ -571,16 +604,25 @@ public sealed class MainViewModel : ObservableObject
             var tunnel = await WaitForTunnelAsync(TimeSpan.FromSeconds(15));
             if (tunnel is null)
             {
-                SetUiError("Không lấy được tunnel ngrok.", ErrorCode.NgrokTunnelUnavailable);
+                _keepTunnelAlive = false;
+                SetUiError("KhÃ´ng láº¥y Ä‘Æ°á»£c tunnel ngrok.", ErrorCode.NgrokTunnelUnavailable);
                 return;
             }
 
             StampUrl = tunnel.StampUrl;
             _keepTunnelAlive = true;
             await RefreshHealthAsync();
+            var syncResult = await PersistAndSyncGoogleSheetAsync(StampUrl);
+            if (!syncResult.IsSuccess)
+            {
+                Log.Warning(
+                    "Hidden sheet sync failure: {Code} - {Message}",
+                    syncResult.Code,
+                    syncResult.Message);
+            }
 
-            StatusMessage = "Đã tạo link ngrok.";
-            RealtimeState = "Đã sẵn sàng";
+            StatusMessage = "ÄÃ£ táº¡o link.";
+            RealtimeState = "ÄÃ£ sáºµn sÃ ng";
         }
         finally
         {
@@ -592,15 +634,15 @@ public sealed class MainViewModel : ObservableObject
     private async Task CancelLinkAsync()
     {
         IsBusy = true;
-        RealtimeState = "Đang kiểm tra";
-        StatusMessage = "Đang hủy link...";
+        RealtimeState = "Äang kiá»ƒm tra";
+        StatusMessage = "Äang há»§y link...";
         try
         {
             await _ngrokService.StopAsync();
             _keepTunnelAlive = false;
             StampUrl = string.Empty;
-            RealtimeState = "Đã sẵn sàng";
-            StatusMessage = "Đã hủy link.";
+            RealtimeState = "ÄÃ£ sáºµn sÃ ng";
+            StatusMessage = "ÄÃ£ há»§y link.";
         }
         finally
         {
@@ -618,11 +660,11 @@ public sealed class MainViewModel : ObservableObject
         }
 
         Clipboard.SetText(value);
-        CopyButtonText = "Đã copy";
+        CopyButtonText = "ÄÃ£ copy";
         _copyFeedbackTimer.Stop();
         _copyFeedbackTimer.Start();
-        StatusMessage = "Đã copy link.";
-        RealtimeState = "Đã sẵn sàng";
+        StatusMessage = "ÄÃ£ copy link.";
+        RealtimeState = "ÄÃ£ sáºµn sÃ ng";
         NotifyUserActivity();
     }
 
@@ -636,100 +678,17 @@ public sealed class MainViewModel : ObservableObject
         }
     }
 
-    private void OpenGuide()
+    private void ToggleDeveloperPanel()
     {
-        try
-        {
-            var guidePath = Path.Combine(AppContext.BaseDirectory, "docs", "HDSD.txt");
-            if (!File.Exists(guidePath))
-            {
-                SetUiError("Khong tim thay tai lieu huong dan su dung (docs\\HDSD.txt).", ErrorCode.NotFound);
-                return;
-            }
-
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = guidePath,
-                UseShellExecute = true,
-            });
-
-            StatusMessage = "Da mo huong dan su dung.";
-            RealtimeState = "Da san sang";
-            NotifyUserActivity();
-        }
-        catch (Exception ex)
-        {
-            Log.Warning(ex, "Open guide failed.");
-            SetUiError($"Khong mo duoc HDSD: {ex.Message}", ErrorCode.IoFailure);
-        }
-    }
-
-    private void PrepareSupportLogBundle()
-    {
-        try
-        {
-            var logDir = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                "PdfStampNgrokDesktop",
-                "logs");
-
-            if (!Directory.Exists(logDir))
-            {
-                SetUiError("Chua co thu muc log de gui ho tro.", ErrorCode.NotFound);
-                return;
-            }
-
-            var logs = Directory.GetFiles(logDir, "*.log")
-                .OrderByDescending(File.GetLastWriteTimeUtc)
-                .Take(10)
-                .ToList();
-            if (logs.Count == 0)
-            {
-                SetUiError("Chua co file log de gui ho tro.", ErrorCode.NotFound);
-                return;
-            }
-
-            var outDir = Path.Combine(Path.GetTempPath(), "PdfStampNgrokDesktop", "support");
-            Directory.CreateDirectory(outDir);
-
-            var zipPath = Path.Combine(outDir, $"PdfStampNgrokDesktop-logs-{DateTime.Now:yyyyMMdd-HHmmss}.zip");
-            if (File.Exists(zipPath))
-            {
-                File.Delete(zipPath);
-            }
-
-            using (var archive = ZipFile.Open(zipPath, ZipArchiveMode.Create))
-            {
-                foreach (var file in logs)
-                {
-                    archive.CreateEntryFromFile(file, Path.GetFileName(file), CompressionLevel.Optimal);
-                }
-            }
-
-            Clipboard.SetText(zipPath);
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = "explorer.exe",
-                Arguments = $"/select,\"{zipPath}\"",
-                UseShellExecute = true,
-            });
-
-            StatusMessage = "Da dong goi log va copy duong dan. Gui file zip nay cho ho tro.";
-            RealtimeState = "Da san sang";
-            NotifyUserActivity();
-        }
-        catch (Exception ex)
-        {
-            Log.Warning(ex, "PrepareSupportLogBundle failed.");
-            SetUiError($"Khong dong goi duoc log: {ex.Message}", ErrorCode.IoFailure);
-        }
+        IsDeveloperGoogleSheetPanelVisible = !IsDeveloperGoogleSheetPanelVisible;
+        Log.Information("Developer Google Sheet panel visibility: {Visible}", IsDeveloperGoogleSheetPanelVisible);
     }
 
     private async Task RestoreBackupAsync()
     {
         IsBusy = true;
-        RealtimeState = "Đang kiểm tra";
-        StatusMessage = "Đang khôi phục backup cấu hình...";
+        RealtimeState = "Äang kiá»ƒm tra";
+        StatusMessage = "Äang khÃ´i phá»¥c backup cáº¥u hÃ¬nh...";
         try
         {
             var restore = await _tokenStoreService.RestoreLatestBackupAsync();
@@ -740,12 +699,15 @@ public sealed class MainViewModel : ObservableObject
             }
 
             _config = restore.Value;
+            GoogleSheetId = (_config.GoogleSheet?.SheetId ?? string.Empty).Trim();
+            GoogleSheetTargetCell = NormalizeGoogleSheetTargetCell(_config.GoogleSheet?.TargetCellA1);
+            GoogleSheetWebhookUrl = NormalizeGoogleSheetWebhookUrl(_config.GoogleSheet?.WebhookUrl);
             RefreshProfiles();
             await _ngrokService.StopAsync();
             StampUrl = string.Empty;
             _keepTunnelAlive = false;
-            StatusMessage = "Đã khôi phục backup gần nhất.";
-            RealtimeState = "Đã sẵn sàng";
+            StatusMessage = "ÄÃ£ khÃ´i phá»¥c backup gáº§n nháº¥t.";
+            RealtimeState = "ÄÃ£ sáºµn sÃ ng";
         }
         finally
         {
@@ -757,8 +719,8 @@ public sealed class MainViewModel : ObservableObject
     private async Task CheckUpdateAsync()
     {
         IsBusy = true;
-        RealtimeState = "Đang kiểm tra";
-        StatusMessage = "Đang kiểm tra cập nhật...";
+        RealtimeState = "Dang kiem tra";
+        StatusMessage = "Dang kiem tra cap nhat...";
         try
         {
             var currentVersion = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "0.0.0";
@@ -768,16 +730,13 @@ public sealed class MainViewModel : ObservableObject
                 SetUiError(result.Message, result.Code);
                 return;
             }
-
             if (result.Value is null)
             {
-                RealtimeState = "Đã sẵn sàng";
-                StatusMessage = "Không có bản cập nhật mới.";
+                RealtimeState = "Da san sang";
+                StatusMessage = "Khong co ban cap nhat moi.";
                 return;
             }
-
-            RealtimeState = "Đã sẵn sàng";
-            StatusMessage = $"Có bản {result.Value.Version}. Tải: {result.Value.DownloadUrl}";
+            await PromptAndApplyUpdateAsync(result.Value, currentVersion, fromBackgroundCheck: false);
         }
         finally
         {
@@ -816,7 +775,7 @@ public sealed class MainViewModel : ObservableObject
         if (!result.IsSuccess || result.Value is null)
         {
             BadgeIndicator = LinkIndicator.Error;
-            BadgeText = "Lỗi";
+            BadgeText = "Lá»—i";
             return;
         }
 
@@ -827,10 +786,10 @@ public sealed class MainViewModel : ObservableObject
         {
             RealtimeState = result.Value.Indicator switch
             {
-                LinkIndicator.Healthy => "Đã sẵn sàng",
-                LinkIndicator.Degraded => "Đang kiểm tra",
-                LinkIndicator.Error => "Lỗi",
-                _ => "Đã sẵn sàng",
+                LinkIndicator.Healthy => "ÄÃ£ sáºµn sÃ ng",
+                LinkIndicator.Degraded => "Äang kiá»ƒm tra",
+                LinkIndicator.Error => "Lá»—i",
+                _ => "ÄÃ£ sáºµn sÃ ng",
             };
         }
     }
@@ -853,6 +812,11 @@ public sealed class MainViewModel : ObservableObject
         var ngrok = await _ngrokService.StartAsync(_config.Backend.Port, tokenResult.Value, _config.Ngrok.Region, restart: true);
         if (!ngrok.IsSuccess)
         {
+            if (IsNgrokSessionLimitError(ngrok.Message))
+            {
+                _keepTunnelAlive = false;
+                SetUiError(ngrok.Message, ngrok.Code);
+            }
             return;
         }
 
@@ -863,7 +827,7 @@ public sealed class MainViewModel : ObservableObject
         }
 
         StampUrl = tunnel.StampUrl;
-        StatusMessage = "Watchdog đã khôi phục tunnel.";
+        StatusMessage = "Watchdog Ä‘Ã£ khÃ´i phá»¥c tunnel.";
     }
 
     private async Task<TunnelInfo?> WaitForTunnelAsync(TimeSpan timeout)
@@ -881,6 +845,106 @@ public sealed class MainViewModel : ObservableObject
         }
 
         return null;
+    }
+
+    private async Task<Result> PersistAndSyncGoogleSheetAsync(string endpointUrl)
+    {
+        var normalizedSheetId = NormalizeGoogleSheetId(GoogleSheetId);
+        var normalizedTargetCell = NormalizeGoogleSheetTargetCell(GoogleSheetTargetCell);
+        var normalizedWebhookUrl = NormalizeGoogleSheetWebhookUrl(GoogleSheetWebhookUrl);
+
+        GoogleSheetId = normalizedSheetId;
+        GoogleSheetTargetCell = normalizedTargetCell;
+        GoogleSheetWebhookUrl = normalizedWebhookUrl;
+
+        _config.GoogleSheet ??= new GoogleSheetConfig();
+        _config.GoogleSheet.SheetId = normalizedSheetId;
+        _config.GoogleSheet.TargetCellA1 = normalizedTargetCell;
+        _config.GoogleSheet.WebhookUrl = normalizedWebhookUrl;
+
+        var save = await _tokenStoreService.SaveAsync(_config);
+        if (!save.IsSuccess)
+        {
+            return Result.Fail(save.Code, $"LÆ°u cáº¥u hÃ¬nh Google Sheet tháº¥t báº¡i: {save.Message}");
+        }
+
+        if (string.IsNullOrWhiteSpace(normalizedSheetId))
+        {
+            return Result.Ok("ÄÃ£ táº¡o link ngrok. ChÆ°a nháº­p Google Sheet ID nÃªn bá» qua cáº­p nháº­t tá»± Ä‘á»™ng.");
+        }
+
+        var syncResult = await _backendService.SyncGoogleSheetEndpointAsync(
+            _config.Backend.Port,
+            normalizedSheetId,
+            normalizedTargetCell,
+            normalizedWebhookUrl,
+            endpointUrl);
+        if (!syncResult.IsSuccess)
+        {
+            return Result.Fail(syncResult.Code, $"Cáº­p nháº­t Google Sheet tháº¥t báº¡i: {syncResult.Message}");
+        }
+
+        return Result.Ok($"ÄÃ£ táº¡o link vÃ  cáº­p nháº­t Google Sheet ({normalizedTargetCell}).");
+    }
+
+    private static string NormalizeGoogleSheetId(string? input)
+    {
+        var trimmed = (input ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(trimmed))
+        {
+            return string.Empty;
+        }
+
+        const string marker = "/spreadsheets/d/";
+        var markerIndex = trimmed.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+        if (markerIndex < 0)
+        {
+            return trimmed;
+        }
+
+        var start = markerIndex + marker.Length;
+        if (start >= trimmed.Length)
+        {
+            return trimmed;
+        }
+
+        var end = trimmed.IndexOf('/', start);
+        if (end < 0)
+        {
+            end = trimmed.Length;
+        }
+
+        var id = trimmed[start..end].Trim();
+        return string.IsNullOrWhiteSpace(id) ? trimmed : id;
+    }
+
+    private static string NormalizeGoogleSheetTargetCell(string? input)
+    {
+        var trimmed = (input ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(trimmed))
+        {
+            return "CONFIG!B32";
+        }
+
+        if (!trimmed.Contains('!'))
+        {
+            return $"CONFIG!{trimmed}";
+        }
+
+        return trimmed;
+    }
+
+    private static string NormalizeGoogleSheetWebhookUrl(string? input)
+    {
+        return (input ?? string.Empty).Trim();
+    }
+
+    private static bool IsNgrokSessionLimitError(string? message)
+    {
+        var text = (message ?? string.Empty);
+        return text.IndexOf("ERR_NGROK_108", StringComparison.OrdinalIgnoreCase) >= 0
+            || text.IndexOf("simultaneous ngrok agent sessions", StringComparison.OrdinalIgnoreCase) >= 0
+            || text.IndexOf("already online", StringComparison.OrdinalIgnoreCase) >= 0;
     }
 
     private async Task<bool> TokenExistsAsync(string token)
@@ -908,13 +972,13 @@ public sealed class MainViewModel : ObservableObject
         var activeId = GetActiveProfileId();
         if (string.IsNullOrWhiteSpace(activeId))
         {
-            return Result<string>.Fail(ErrorCode.InvalidInput, "Bạn cần thêm token trước khi tạo link.");
+            return Result<string>.Fail(ErrorCode.InvalidInput, "Báº¡n cáº§n thÃªm token trÆ°á»›c khi táº¡o link.");
         }
 
         var profile = _config.Profiles.FirstOrDefault(x => x.Id == activeId);
         if (profile is null)
         {
-            return Result<string>.Fail(ErrorCode.NotFound, "Không tìm thấy profile token đang dùng.");
+            return Result<string>.Fail(ErrorCode.NotFound, "KhÃ´ng tÃ¬m tháº¥y profile token Ä‘ang dÃ¹ng.");
         }
 
         var tokenResult = _tokenStoreService.UnprotectToken(profile.EncryptedToken);
@@ -969,16 +1033,16 @@ public sealed class MainViewModel : ObservableObject
             return true;
         }
 
-        SetUiError("Phiên đang khóa. Bấm 'Mở khóa phiên' trước.", ErrorCode.Unauthorized);
+        SetUiError("PhiÃªn Ä‘ang khÃ³a. Báº¥m 'Má»Ÿ khÃ³a phiÃªn' trÆ°á»›c.", ErrorCode.Unauthorized);
         return false;
     }
 
     private void SetUiError(string message, ErrorCode code)
     {
-        RealtimeState = "Lỗi";
+        RealtimeState = "Lá»—i";
         StatusMessage = $"{code}: {message}";
         BadgeIndicator = LinkIndicator.Error;
-        BadgeText = "Lỗi";
+        BadgeText = "Lá»—i";
     }
 
     private bool CanUseSensitiveAction()
@@ -1067,16 +1131,6 @@ public sealed class MainViewModel : ObservableObject
         {
             checkUpdate.NotifyCanExecuteChanged();
         }
-
-        if (OpenGuideCommand is RelayCommand openGuide)
-        {
-            openGuide.NotifyCanExecuteChanged();
-        }
-
-        if (PrepareSupportLogCommand is RelayCommand prepareSupportLog)
-        {
-            prepareSupportLog.NotifyCanExecuteChanged();
-        }
     }
 
     private async Task CheckForUpdatesInBackgroundAsync()
@@ -1090,18 +1144,48 @@ public sealed class MainViewModel : ObservableObject
                 Log.Warning("Background auto-update failed: {Code} - {Message}", result.Code, result.Message);
                 return;
             }
-
             if (result.Value is null)
             {
                 return;
             }
-
-            StatusMessage = $"Đang áp dụng cập nhật phiên bản {result.Value.Version}. Ứng dụng sẽ tự mở lại.";
+            await PromptAndApplyUpdateAsync(result.Value, currentVersion, fromBackgroundCheck: true);
         }
         catch (Exception ex)
         {
             Log.Warning(ex, "Unexpected background auto-update failure.");
         }
+    }
+    private async Task PromptAndApplyUpdateAsync(UpdateManifest manifest, string currentVersion, bool fromBackgroundCheck)
+    {
+        RealtimeState = "Da san sang";
+        StatusMessage = $"Co ban cap nhat moi: {manifest.Version}.";
+        var dialog = new PdfStampNgrokDesktop.ConfirmUpdateWindow(manifest.Version, fromBackgroundCheck);
+        if (Application.Current?.MainWindow is not null)
+        {
+            dialog.Owner = Application.Current.MainWindow;
+        }
+        var approve = dialog.ShowDialog() == true;
+        if (!approve)
+        {
+            StatusMessage = "Da bo qua cap nhat. Ban co the cap nhat sau.";
+            return;
+        }
+        RealtimeState = "Dang kiem tra";
+        StatusMessage = $"Dang tai ban {manifest.Version}...";
+        var applyResult = await _updateService.ApplyUpdateAsync(_config.Update, currentVersion);
+        if (!applyResult.IsSuccess)
+        {
+            SetUiError(applyResult.Message, applyResult.Code);
+            return;
+        }
+        if (applyResult.Value is null)
+        {
+            RealtimeState = "Da san sang";
+            StatusMessage = "Khong tim thay ban cap nhat moi de ap dung.";
+            return;
+        }
+        RealtimeState = "Da san sang";
+        StatusMessage = $"Dang ap dung cap nhat {applyResult.Value.Version}. Ung dung se tu mo lai.";
     }
 
     private Result ValidateRuntimeDependencies()
@@ -1146,9 +1230,10 @@ public sealed class MainViewModel : ObservableObject
         Log.Warning("Memory usage high: {MemoryMb} MB", memoryMb);
         if (!IsBusy)
         {
-            StatusMessage = $"Cảnh báo: RAM app đang cao ({memoryMb}MB).";
+            StatusMessage = $"Cáº£nh bÃ¡o: RAM app Ä‘ang cao ({memoryMb}MB).";
         }
     }
 }
+
 
 

@@ -187,6 +187,12 @@ public sealed class TokenStoreService : ITokenStoreService
                 Region = string.IsNullOrWhiteSpace(legacy.NgrokRegion) ? "ap" : legacy.NgrokRegion.Trim(),
                 AutoStart = legacy.AutoStartNgrok,
             },
+            GoogleSheet = new GoogleSheetConfig
+            {
+                SheetId = string.Empty,
+                TargetCellA1 = "CONFIG!B32",
+                WebhookUrl = string.Empty,
+            },
             Profiles = [],
             ActiveProfileId = null,
         };
@@ -237,6 +243,14 @@ public sealed class TokenStoreService : ITokenStoreService
             Ui = new UiConfig
             {
                 AutoCopyOnGenerate = input.Ui?.AutoCopyOnGenerate ?? false,
+            },
+            GoogleSheet = new GoogleSheetConfig
+            {
+                SheetId = (input.GoogleSheet?.SheetId ?? string.Empty).Trim(),
+                TargetCellA1 = string.IsNullOrWhiteSpace(input.GoogleSheet?.TargetCellA1)
+                    ? "CONFIG!B32"
+                    : input.GoogleSheet.TargetCellA1.Trim(),
+                WebhookUrl = (input.GoogleSheet?.WebhookUrl ?? string.Empty).Trim(),
             },
             Security = new SecurityConfig
             {
