@@ -230,6 +230,56 @@ jobs:
 
           & vpk @args
 
+      - name: Keep setup asset only on source release
+        if: steps.meta.outputs.feed_repo_url == format('https://github.com/{0}', github.repository)
+        shell: pwsh
+        env:
+          SOURCE_GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $repo = "${{ github.repository }}"
+          $tag = "${{ steps.meta.outputs.tag }}"
+          $token = $env:SOURCE_GH_TOKEN
+          if (-not $token) {
+            throw "Missing SOURCE_GH_TOKEN."
+          }
+
+          $headers = @{
+            Authorization = "Bearer $token"
+            Accept = "application/vnd.github+json"
+            "X-GitHub-Api-Version" = "2022-11-28"
+          }
+
+          $release = Invoke-RestMethod `
+            -Method GET `
+            -Uri "https://api.github.com/repos/$repo/releases/tags/$tag" `
+            -Headers $headers
+
+          if ($null -eq $release -or $null -eq $release.assets) {
+            throw "Cannot resolve release assets for tag $tag."
+          }
+
+          $assets = @($release.assets)
+          $setupAsset = $assets |
+            Where-Object { $_.name -match '(?i)-setup\.exe$' } |
+            Select-Object -First 1
+
+          if ($null -eq $setupAsset) {
+            throw "Setup asset not found on release $tag."
+          }
+
+          foreach ($asset in $assets) {
+            if ($asset.id -eq $setupAsset.id) {
+              continue
+            }
+
+            Invoke-RestMethod `
+              -Method DELETE `
+              -Uri "https://api.github.com/repos/$repo/releases/assets/$($asset.id)" `
+              -Headers $headers
+          }
+
+          Write-Host "Kept asset: $($setupAsset.name)"
+
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:

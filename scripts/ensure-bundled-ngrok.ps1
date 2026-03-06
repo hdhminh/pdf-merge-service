@@ -16,7 +16,7 @@ $zipPath = Join-Path $env:TEMP "ngrok-v3-windows-amd64.zip"
 
 $expectedHash = if ($null -eq $ExpectedZipSha256) { "" } else { $ExpectedZipSha256.Trim().ToLowerInvariant() }
 if (-not $expectedHash) {
-    $expectedHash = "2cf6f8bce5e642b26f147c46423d4ce7f70528450038201eb114519162a98281"
+    $expectedHash = "070b3202a473aff46f448e662ec35fdb63e3d87822f20180f3502e89d5d5a23f"
 }
 
 Invoke-WebRequest -Uri "https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip" -OutFile $zipPath
