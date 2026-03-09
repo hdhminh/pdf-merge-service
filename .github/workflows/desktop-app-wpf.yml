@@ -127,32 +127,7 @@ jobs:
 
       - name: Ensure bundled ngrok
         shell: pwsh
-        run: |
-          $targetDir = "bin/win32-x64"
-          $targetExe = Join-Path $targetDir "ngrok.exe"
-          if (Test-Path $targetExe) {
-            Write-Host "Using existing ngrok binary: $targetExe"
-            exit 0
-          }
-
-          New-Item -ItemType Directory -Path $targetDir -Force | Out-Null
-          $zipPath = Join-Path $env:RUNNER_TEMP "ngrok-v3-windows-amd64.zip"
-          $expectedHash = "${{ vars.NGROK_WIN_AMD64_SHA256 }}".Trim().ToLowerInvariant()
-          if (-not $expectedHash) {
-            $expectedHash = "2cf6f8bce5e642b26f147c46423d4ce7f70528450038201eb114519162a98281"
-          }
-
-          Invoke-WebRequest -Uri "https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip" -OutFile $zipPath
-          $actualHash = (Get-FileHash -Path $zipPath -Algorithm SHA256).Hash.ToLowerInvariant()
-          if ($actualHash -ne $expectedHash) {
-            throw "ngrok zip checksum mismatch. expected=$expectedHash actual=$actualHash. Update NGROK_WIN_AMD64_SHA256 after verifying vendor binary."
-          }
-
-          Expand-Archive -Path $zipPath -DestinationPath $targetDir -Force
-
-          if (-not (Test-Path $targetExe)) {
-            throw "ngrok.exe was not found after extraction."
-          }
+        run: ./scripts/ensure-bundled-ngrok.ps1 -ExpectedZipSha256 "${{ vars.NGROK_WIN_AMD64_SHA256 }}"
 
       - name: Restore
         run: dotnet restore pdf-merge-service.sln
