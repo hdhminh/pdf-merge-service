@@ -38,6 +38,10 @@
 8. Kiem tra auto-update:
    - Tang version test (hoac dung channel beta).
    - App hien thong bao cap nhat va cap nhat thanh cong sau khi bam `Cap nhat`.
+9. Chay regression stamp scan:
+   - Chinh danh sach file trong `scripts/regression-cases.sample.json` (hoac tao manifest rieng).
+   - Chay `npm run test:stamp-regression`.
+   - Dam bao tat ca case `PASS` va xem log `[stamp-timing]` khong bi regression lon.
 
 ## Tieu chi dat release
 - Tat ca M1, M2 bat buoc `PASS`.

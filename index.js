@@ -1,6 +1,9 @@
 const express = require("express");
 const http = require("http");
 const https = require("https");
+const fs = require("fs");
+const os = require("os");
+const path = require("path");
 const multer = require("multer");
 const { stampPdf, toPdfBytes } = require("./pdfStamp");
 
@@ -13,6 +16,19 @@ const GOOGLE_SHEET_SYNC_URL = trimValue(process.env.GOOGLE_SHEET_SYNC_URL);
 const GOOGLE_SHEET_SYNC_API_KEY = trimValue(process.env.GOOGLE_SHEET_SYNC_API_KEY);
 const GOOGLE_SHEET_SYNC_TIMEOUT_MS =
   Number(process.env.GOOGLE_SHEET_SYNC_TIMEOUT_MS) || 25000;
+const GOOGLE_SHEET_SYNC_MAX_REDIRECTS =
+  Number(process.env.GOOGLE_SHEET_SYNC_MAX_REDIRECTS) > 0
+    ? Number(process.env.GOOGLE_SHEET_SYNC_MAX_REDIRECTS)
+    : 4;
+const TEMP_SIGFIELDS_PREFIX = "pdf-sigfields-";
+const TEMP_MAX_AGE_MS =
+  Number(process.env.TEMP_FILE_MAX_AGE_MS) > 0
+    ? Number(process.env.TEMP_FILE_MAX_AGE_MS)
+    : 30 * 60 * 1000;
+const TEMP_CLEANUP_INTERVAL_MS =
+  Number(process.env.TEMP_CLEANUP_INTERVAL_MS) > 0
+    ? Number(process.env.TEMP_CLEANUP_INTERVAL_MS)
+    : 5 * 60 * 1000;
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: MAX_FILE_SIZE },
@@ -44,6 +60,106 @@ function trimValue(value) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function normalizeProfileSelection(profileName, profile) {
+  const candidate = trimValue(profileName) || trimValue(profile);
+  if (!candidate) {
+    return { profileHint: "auto", profileOverride: undefined };
+  }
+
+  const normalized = candidate.toLowerCase();
+  if (
+    normalized === "auto" ||
+    normalized === "default" ||
+    normalized === "classifier" ||
+    normalized === "none"
+  ) {
+    return { profileHint: "auto", profileOverride: undefined };
+  }
+
+  return { profileHint: candidate, profileOverride: candidate };
+}
+
+function generateRequestId() {
+  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function maskValue(value, visible = 4) {
+  const raw = trimValue(value);
+  if (!raw) {
+    return "";
+  }
+
+  if (raw.length <= visible * 2) {
+    return `${raw.slice(0, 1)}***${raw.slice(-1)}`;
+  }
+
+  return `${raw.slice(0, visible)}...${raw.slice(-visible)}`;
+}
+
+function getHostOnly(urlValue) {
+  try {
+    return new URL(trimValue(urlValue)).host;
+  } catch (_err) {
+    return "";
+  }
+}
+
+function cleanupOrphanTempDirs(prefix, maxAgeMs) {
+  if (!prefix || maxAgeMs <= 0) {
+    return 0;
+  }
+
+  const tempRoot = os.tmpdir();
+  const now = Date.now();
+  let removed = 0;
+  let entries = [];
+
+  try {
+    entries = fs.readdirSync(tempRoot, { withFileTypes: true });
+  } catch (_err) {
+    return 0;
+  }
+
+  for (const entry of entries) {
+    if (!entry?.isDirectory?.() || !entry.name.startsWith(prefix)) {
+      continue;
+    }
+
+    const fullPath = path.join(tempRoot, entry.name);
+    try {
+      const stat = fs.statSync(fullPath);
+      if (!Number.isFinite(stat.mtimeMs) || now - stat.mtimeMs < maxAgeMs) {
+        continue;
+      }
+
+      fs.rmSync(fullPath, { recursive: true, force: true });
+      removed += 1;
+    } catch (_err) {
+      // best-effort cleanup
+    }
+  }
+
+  return removed;
+}
+
+function startTempCleanupScheduler() {
+  const runCleanup = () => {
+    const removed = cleanupOrphanTempDirs(TEMP_SIGFIELDS_PREFIX, TEMP_MAX_AGE_MS);
+    if (removed > 0) {
+      console.info(`[temp-cleanup] removed ${removed} stale temp folder(s)`);
+    }
+  };
+
+  runCleanup();
+
+  if (TEMP_CLEANUP_INTERVAL_MS > 0) {
+    const timer = setInterval(runCleanup, TEMP_CLEANUP_INTERVAL_MS);
+    if (typeof timer.unref === "function") {
+      timer.unref();
+    }
+  }
+}
+
 function parseOptionalJson(value) {
   if (!value) {
     return {};
@@ -67,6 +183,26 @@ function parseOptionalJson(value) {
   } catch (_err) {
     return {};
   }
+}
+
+function parseOptionalBoolean(value) {
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (["1", "true", "yes", "on"].includes(normalized)) {
+    return true;
+  }
+  if (["0", "false", "no", "off"].includes(normalized)) {
+    return false;
+  }
+
+  return undefined;
 }
 
 function normalizeGoogleSheetId(value) {
@@ -111,7 +247,30 @@ function tryParseJson(raw) {
   }
 }
 
-function postJson(targetUrl, payload, headers = {}, timeoutMs = 12000) {
+function isRedirectStatus(statusCode) {
+  return statusCode === 301 || statusCode === 302 || statusCode === 303 || statusCode === 307 || statusCode === 308;
+}
+
+function resolveRedirectUrl(baseUrl, locationValue) {
+  const location = trimValue(locationValue);
+  if (!location) {
+    return "";
+  }
+
+  try {
+    return new URL(location, baseUrl).toString();
+  } catch (_err) {
+    return "";
+  }
+}
+
+function postJson(
+  targetUrl,
+  payload,
+  headers = {},
+  timeoutMs = 12000,
+  maxRedirects = GOOGLE_SHEET_SYNC_MAX_REDIRECTS,
+) {
   return new Promise((resolve, reject) => {
     let parsedUrl;
     try {
@@ -142,9 +301,25 @@ function postJson(targetUrl, payload, headers = {}, timeoutMs = 12000) {
         const chunks = [];
         res.on("data", (chunk) => chunks.push(chunk));
         res.on("end", () => {
+          const statusCode = Number(res.statusCode) || 0;
+          const bodyText = Buffer.concat(chunks).toString("utf8");
+          const responseHeaders = res.headers || {};
+
+          if (isRedirectStatus(statusCode)) {
+            const nextUrl = resolveRedirectUrl(targetUrl, responseHeaders.location);
+            if (nextUrl && maxRedirects > 0) {
+              postJson(nextUrl, payload, headers, timeoutMs, maxRedirects - 1)
+                .then(resolve)
+                .catch(reject);
+              return;
+            }
+          }
+
           resolve({
-            statusCode: Number(res.statusCode) || 0,
-            body: Buffer.concat(chunks).toString("utf8"),
+            statusCode,
+            body: bodyText,
+            headers: responseHeaders,
+            finalUrl: targetUrl,
           });
         });
       },
@@ -188,6 +363,10 @@ app.get("/health", (_req, res) => {
 });
 
 app.post("/api/pdf/stamp", upload.single("file"), async (req, res, next) => {
+  const requestId = trimValue(req.headers["x-request-id"]) || generateRequestId();
+  const startAt = performance.now?.() ?? Date.now();
+  res.setHeader("x-request-id", requestId);
+
   try {
     const {
       contentBase64,
@@ -202,8 +381,15 @@ app.post("/api/pdf/stamp", upload.single("file"), async (req, res, next) => {
       imageLayout,
       textLayout,
       signatureFields,
+      profileName,
+      profile,
+      logTiming,
       outputFileName,
     } = req.body || {};
+    const { profileHint, profileOverride } = normalizeProfileSelection(
+      profileName,
+      profile,
+    );
 
     const certNo = trimValue(certificationNumber);
     const certDate = trimValue(certificationDate);
@@ -236,6 +422,9 @@ app.post("/api/pdf/stamp", upload.single("file"), async (req, res, next) => {
       imageLayout: parseOptionalJson(imageLayout),
       textLayout: parseOptionalJson(textLayout),
       signatureFields: parseOptionalJson(signatureFields),
+      profileName: profileOverride,
+      logTiming: parseOptionalBoolean(logTiming),
+      requestId,
     });
 
     const finalName = sanitizePdfFileName(
@@ -246,7 +435,14 @@ app.post("/api/pdf/stamp", upload.single("file"), async (req, res, next) => {
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename="${finalName}"`);
     res.send(Buffer.from(stampedBytes));
+    const elapsedMs = (performance.now?.() ?? Date.now()) - startAt;
+    console.info("[stamp] success", {
+      requestId,
+      profileHint,
+      durationMs: Math.round(elapsedMs),
+    });
   } catch (err) {
+    err.requestId = requestId;
     next(err);
   }
 });
@@ -257,19 +453,14 @@ app.post("/api/google-sheet/set-endpoint", async (req, res, next) => {
     const targetA1 = normalizeTargetA1(req.body?.targetA1);
     const webhookUrl = trimValue(req.body?.webhookUrl) || GOOGLE_SHEET_SYNC_URL;
     const endpoint = trimValue(req.body?.endpoint);
-    const webhookHost = (() => {
-      try {
-        return new URL(webhookUrl).host;
-      } catch (_err) {
-        return "invalid-webhook-url";
-      }
-    })();
+    const webhookHost = getHostOnly(webhookUrl) || "invalid-webhook-url";
+    const endpointHost = getHostOnly(endpoint) || "invalid-endpoint";
 
     console.info("[sheet-sync] request", {
-      sheetId,
+      sheetIdMasked: maskValue(sheetId),
       targetA1,
       webhookHost,
-      endpoint,
+      endpointHost,
     });
 
     if (!sheetId) {
@@ -317,7 +508,16 @@ app.post("/api/google-sheet/set-endpoint", async (req, res, next) => {
 
     const parsed = tryParseJson(upstream.body);
     if (upstream.statusCode < 200 || upstream.statusCode >= 300) {
+      const redirectLocation = trimValue(upstream.headers?.location);
+      const redirectHost = getHostOnly(redirectLocation);
+      const locationText = redirectHost || "unknown";
       const upstreamMessage =
+        (upstream.statusCode === 302 && redirectLocation.includes("accounts.google.com")
+          ? "Webhook Apps Script dang yeu cau dang nhap (302). Deploy Web App voi quyen Anyone."
+          : null) ||
+        (upstream.statusCode === 302 && redirectLocation
+          ? `Upstream redirect 302 toi ${locationText}.`
+          : null) ||
         (parsed && typeof parsed.message === "string" && parsed.message.trim()) ||
         `Upstream returned status ${upstream.statusCode}.`;
       throw createError(502, "GOOGLE_SHEET_SYNC_FAILED", upstreamMessage);
@@ -348,10 +548,10 @@ app.post("/api/google-sheet/set-endpoint", async (req, res, next) => {
     }
 
     console.info("[sheet-sync] success", {
-      sheetId,
+      sheetIdMasked: maskValue(sheetId),
       targetA1,
-      endpoint,
-      writtenValue: upstreamWrittenValue || "",
+      endpointHost,
+      writtenValueMatched: !upstreamWrittenValue || upstreamWrittenValue === endpoint,
     });
 
     res.json({
@@ -378,10 +578,12 @@ app.use((err, _req, res, _next) => {
   res.status(status).json({
     success: false,
     errorCode,
+    requestId: err.requestId || undefined,
     message: err.message || "Unexpected server error.",
   });
 });
 
 app.listen(PORT, () => {
+  startTempCleanupScheduler();
   console.log(`PDF service running at http://localhost:${PORT}`);
 });

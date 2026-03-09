@@ -1,0 +1,31 @@
+{
+  "cases": [
+    {
+      "name": "scan_certificate_half_page",
+      "input": "F:/Downloads/Ban_sao_20260309__unstamped_v2.pdf",
+      "output": "F:/Downloads/Ban_sao_20260309__regression_stamped.pdf",
+      "profileName": "scan_dense_portrait",
+      "options": {
+        "logTiming": true
+      }
+    },
+    {
+      "name": "scan_decision_half_page",
+      "input": "F:/Downloads/Ban_sao_202603091__unstamped_v2.pdf",
+      "output": "F:/Downloads/Ban_sao_202603091__regression_stamped.pdf",
+      "profileName": "scan_dense_portrait",
+      "options": {
+        "logTiming": true
+      }
+    },
+    {
+      "name": "scan_id_card_landscape",
+      "input": "F:/Downloads/img20260304_14584275.pdf",
+      "output": "F:/Downloads/img20260304_14584275__regression_stamped.pdf",
+      "profileName": "scan_dense_portrait",
+      "options": {
+        "logTiming": true
+      }
+    }
+  ]
+}

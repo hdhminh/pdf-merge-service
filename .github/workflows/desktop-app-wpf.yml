@@ -5,11 +5,21 @@ on:
     paths:
       - "desktop-app-wpf/**"
       - "desktop-app-wpf.tests/**"
+      - "index.js"
+      - "pdfStamp.js"
+      - "config/stamp-profiles.json"
+      - "scripts/check-backend-sync.ps1"
+      - "scripts/sync-backend.ps1"
       - ".github/workflows/desktop-app-wpf.yml"
   pull_request:
     paths:
       - "desktop-app-wpf/**"
       - "desktop-app-wpf.tests/**"
+      - "index.js"
+      - "pdfStamp.js"
+      - "config/stamp-profiles.json"
+      - "scripts/check-backend-sync.ps1"
+      - "scripts/sync-backend.ps1"
       - ".github/workflows/desktop-app-wpf.yml"
   workflow_dispatch:
 
@@ -33,6 +43,10 @@ jobs:
 
       - name: Install backend dependencies
         run: npm ci --omit=dev
+
+      - name: Check backend mirror sync
+        shell: pwsh
+        run: ./scripts/check-backend-sync.ps1
 
       - name: Prune backend dependency payload
         shell: pwsh

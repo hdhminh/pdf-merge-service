@@ -33,6 +33,10 @@ public sealed class MainViewModel : ObservableObject
     private bool _keepTunnelAlive;
     private bool _isRefreshInProgress;
     private DateTime _lastActivityUtc = DateTime.UtcNow;
+    private DateTime _lastTunnelRecoverAttemptUtc = DateTime.MinValue;
+    private DateTime _lastBackendRecoverAttemptUtc = DateTime.MinValue;
+    private int _tunnelRecoverFailureCount;
+    private int _backendRecoverFailureCount;
 
     private string _selectedProfileId = string.Empty;
     private string _newProfileName = string.Empty;
@@ -52,6 +56,8 @@ public sealed class MainViewModel : ObservableObject
     private UpdateChannel _selectedUpdateChannel = UpdateChannel.Stable;
     private string _updateHint = UiText.Format("UpdateChannelHintTemplate", "Kenh cap nhat: {0}", "stable");
     private bool _isDeveloperGoogleSheetPanelVisible;
+    private static readonly TimeSpan WatchdogRecoverCooldown = TimeSpan.FromSeconds(8);
+    private const int MaxRecoverFailuresBeforePause = 3;
 
     public MainViewModel(
         ITokenStoreService tokenStoreService,
@@ -365,6 +371,11 @@ public sealed class MainViewModel : ObservableObject
             if (_keepTunnelAlive && !IsSessionLocked && !_ngrokService.IsRunning && !string.IsNullOrWhiteSpace(GetActiveProfileId()))
             {
                 await TrySelfRecoverTunnelAsync();
+            }
+
+            if (!IsSessionLocked && _ngrokService.IsRunning)
+            {
+                await TrySelfRecoverBackendAsync();
             }
 
             await RefreshTunnelUrlFromNgrokAsync();
@@ -796,9 +807,16 @@ public sealed class MainViewModel : ObservableObject
 
     private async Task TrySelfRecoverTunnelAsync()
     {
+        if (IsRecoveryCooldownActive(_lastTunnelRecoverAttemptUtc))
+        {
+            return;
+        }
+
+        _lastTunnelRecoverAttemptUtc = DateTime.UtcNow;
         var tokenResult = GetActivePlainToken();
         if (!tokenResult.IsSuccess || string.IsNullOrWhiteSpace(tokenResult.Value))
         {
+            _tunnelRecoverFailureCount += 1;
             return;
         }
 
@@ -806,6 +824,7 @@ public sealed class MainViewModel : ObservableObject
         var backend = await _backendService.EnsureStartedAsync(_config.Backend.Port);
         if (!backend.IsSuccess)
         {
+            _tunnelRecoverFailureCount += 1;
             return;
         }
 
@@ -817,17 +836,52 @@ public sealed class MainViewModel : ObservableObject
                 _keepTunnelAlive = false;
                 SetUiError(ngrok.Message, ngrok.Code);
             }
+            _tunnelRecoverFailureCount += 1;
             return;
         }
 
         var tunnel = await WaitForTunnelAsync(TimeSpan.FromSeconds(10));
         if (tunnel is null)
         {
+            _tunnelRecoverFailureCount += 1;
             return;
         }
 
         StampUrl = tunnel.StampUrl;
+        _tunnelRecoverFailureCount = 0;
         StatusMessage = UiText.Get("StatusWatchdogRecovered", "Watchdog da khoi phuc tunnel.");
+    }
+
+    private async Task TrySelfRecoverBackendAsync()
+    {
+        if (IsRecoveryCooldownActive(_lastBackendRecoverAttemptUtc))
+        {
+            return;
+        }
+
+        var healthy = await _backendService.IsHealthyAsync(_config.Backend.Port);
+        if (healthy)
+        {
+            _backendRecoverFailureCount = 0;
+            return;
+        }
+
+        _lastBackendRecoverAttemptUtc = DateTime.UtcNow;
+        Log.Warning("Watchdog: backend is unhealthy while ngrok is running, attempting restart.");
+        var backend = await _backendService.EnsureStartedAsync(_config.Backend.Port);
+        if (backend.IsSuccess)
+        {
+            _backendRecoverFailureCount = 0;
+            StatusMessage = UiText.Get("StatusWatchdogRecovered", "Watchdog da khoi phuc tunnel.");
+            return;
+        }
+
+        _backendRecoverFailureCount += 1;
+        if (_backendRecoverFailureCount >= MaxRecoverFailuresBeforePause)
+        {
+            _keepTunnelAlive = false;
+            SetUiError(backend.Message, backend.Code);
+        }
     }
 
     private async Task<TunnelInfo?> WaitForTunnelAsync(TimeSpan timeout)
@@ -845,6 +899,16 @@ public sealed class MainViewModel : ObservableObject
         }
 
         return null;
+    }
+
+    private static bool IsRecoveryCooldownActive(DateTime lastAttemptUtc)
+    {
+        if (lastAttemptUtc == DateTime.MinValue)
+        {
+            return false;
+        }
+
+        return DateTime.UtcNow - lastAttemptUtc < WatchdogRecoverCooldown;
     }
 
     private async Task<Result> PersistAndSyncGoogleSheetAsync(string endpointUrl)

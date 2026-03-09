@@ -85,6 +85,19 @@ public sealed class NgrokService : INgrokService
 
                 LastError = NormalizeNgrokError(line);
                 Log.Warning("ngrok stderr: {Message}", LastError);
+                TryWriteDevConsole($"[ngrok:stderr] {LastError}");
+            };
+
+            process.OutputDataReceived += (_, e) =>
+            {
+                if (string.IsNullOrWhiteSpace(e.Data))
+                {
+                    return;
+                }
+
+                var line = e.Data.Trim();
+                Log.Information("ngrok stdout: {Message}", line);
+                TryWriteDevConsole($"[ngrok] {line}");
             };
 
             process.Exited += (_, _) =>
@@ -220,13 +233,25 @@ public sealed class NgrokService : INgrokService
 
     private static string BuildArguments(int backendPort, string token, string region)
     {
-        var args = $"http {backendPort} --log=stdout --authtoken {token}";
+        var args = $"http {backendPort} --log=stdout --inspect=false --authtoken {token}";
         if (!string.IsNullOrWhiteSpace(region))
         {
             args += $" --region {region}";
         }
 
         return args;
+    }
+
+    private static void TryWriteDevConsole(string line)
+    {
+        try
+        {
+            Console.WriteLine(line);
+        }
+        catch
+        {
+            // WPF release mode may not have an attached console.
+        }
     }
 
     private static bool IsNgrokErrorLine(string line)
@@ -318,7 +343,7 @@ public sealed class NgrokService : INgrokService
     {
         if (string.IsNullOrWhiteSpace(line))
         {
-            return "Không thể chạy ngrok.";
+            return "Khong the chay ngrok.";
         }
 
         var text = line.ToLowerInvariant();
@@ -326,15 +351,27 @@ public sealed class NgrokService : INgrokService
             || text.Contains("1 simultaneous ngrok agent sessions")
             || text.Contains("authentication failed: your account is limited to 1 simultaneous"))
         {
-            return "Tài khoản ngrok đang chạy ở nơi khác (ERR_NGROK_108). Hãy tắt phiên ngrok cũ tại https://dashboard.ngrok.com/agents rồi bấm 'Tạo link' lại.";
+            return "Tai khoan ngrok dang chay o noi khac (ERR_NGROK_108). Hay tat phien ngrok cu tai https://dashboard.ngrok.com/agents roi bam 'Tao link' lai.";
         }
 
         if (text.Contains("already online") && text.Contains("endpoint"))
         {
-            return "Domain ngrok đang online ở phiên khác. Hãy tắt endpoint cũ tại https://dashboard.ngrok.com/endpoints (hoặc agents) rồi bấm 'Tạo link' lại.";
+            return "Domain ngrok dang online o phien khac. Hay tat endpoint cu tai https://dashboard.ngrok.com/endpoints (hoac agents) roi bam 'Tao link' lai.";
         }
 
-        return line;
+        if (text.Contains("err_ngrok_8012")
+            || text.Contains("failed to establish a connection to the upstream web service"))
+        {
+            return "Ngrok da len tunnel nhung backend local khong ket noi (ERR_NGROK_8012). Hay khoi dong lai backend.";
+        }
+
+        if (text.Contains("err_ngrok_6024"))
+        {
+            return "Tunnel ngrok yeu cau xac minh trinh duyet (ERR_NGROK_6024). Ung dung da bo qua bang header, vui long thu lai.";
+        }
+
+        return "Khong the ket noi ngrok. Vui long tao lai link.";
     }
 
 }
+

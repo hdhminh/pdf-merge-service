@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using iText.Forms;
 using iText.Forms.Fields;
 using iText.Kernel.Colors;
@@ -6,13 +6,14 @@ using iText.Kernel.Geom;
 using iText.Kernel.Pdf;
 using iText.Kernel.Pdf.Annot;
 
-if (args.Length != 2 || !string.Equals(args[0], "--job", StringComparison.OrdinalIgnoreCase))
+var (jobPath, writeStdout, parseError) = ParseArguments(args);
+if (!string.IsNullOrWhiteSpace(parseError))
 {
-    Console.Error.WriteLine("Usage: SignatureFieldTool --job <job.json>");
+    Console.Error.WriteLine(parseError);
+    Console.Error.WriteLine("Usage: SignatureFieldTool --job <job.json> [--stdout]");
     return 2;
 }
 
-var jobPath = args[1];
 if (!File.Exists(jobPath))
 {
     Console.Error.WriteLine($"Job file not found: {jobPath}");
@@ -34,9 +35,15 @@ catch (Exception ex)
     return 2;
 }
 
-if (job is null || string.IsNullOrWhiteSpace(job.Input) || string.IsNullOrWhiteSpace(job.Output))
+if (job is null || string.IsNullOrWhiteSpace(job.Input))
 {
-    Console.Error.WriteLine("Invalid job: input/output are required.");
+    Console.Error.WriteLine("Invalid job: input is required.");
+    return 2;
+}
+
+if (!writeStdout && string.IsNullOrWhiteSpace(job.Output))
+{
+    Console.Error.WriteLine("Invalid job: output is required unless --stdout is used.");
     return 2;
 }
 
@@ -54,16 +61,89 @@ if (job.Fields is null || job.Fields.Count == 0)
 
 try
 {
-    var outputDir = System.IO.Path.GetDirectoryName(job.Output);
-    if (!string.IsNullOrWhiteSpace(outputDir))
+    if (!writeStdout)
     {
-        Directory.CreateDirectory(outputDir);
+        var outputDir = System.IO.Path.GetDirectoryName(job.Output);
+        if (!string.IsNullOrWhiteSpace(outputDir))
+        {
+            Directory.CreateDirectory(outputDir);
+        }
+
+        using var reader = new PdfReader(job.Input);
+        using var writer = new PdfWriter(job.Output);
+        using var pdf = new PdfDocument(reader, writer);
+        ApplySignatureFields(pdf, job);
+        pdf.Close();
+    }
+    else
+    {
+        using var reader = new PdfReader(job.Input);
+        using var outputStream = new MemoryStream();
+        using (var writer = new PdfWriter(outputStream))
+        using (var pdf = new PdfDocument(reader, writer))
+        {
+            ApplySignatureFields(pdf, job);
+            pdf.Close();
+        }
+
+        var bytes = outputStream.ToArray();
+        using var stdout = Console.OpenStandardOutput();
+        stdout.Write(bytes, 0, bytes.Length);
+        stdout.Flush();
+    }
+}
+catch (Exception ex)
+{
+    Console.Error.WriteLine($"Signature field injection failed: {ex}");
+    return 1;
+}
+
+return 0;
+
+static (string JobPath, bool WriteStdout, string ParseError) ParseArguments(string[] args)
+{
+    string jobPath = string.Empty;
+    var writeStdout = false;
+
+    if (args.Length == 0)
+    {
+        return (jobPath, writeStdout, "Missing arguments.");
     }
 
-    using var reader = new PdfReader(job.Input);
-    using var writer = new PdfWriter(job.Output);
-    using var pdf = new PdfDocument(reader, writer);
+    for (var i = 0; i < args.Length; i += 1)
+    {
+        var arg = args[i];
+        if (string.Equals(arg, "--job", StringComparison.OrdinalIgnoreCase))
+        {
+            if (i + 1 >= args.Length)
+            {
+                return (jobPath, writeStdout, "Missing value for --job.");
+            }
 
+            jobPath = args[i + 1];
+            i += 1;
+            continue;
+        }
+
+        if (string.Equals(arg, "--stdout", StringComparison.OrdinalIgnoreCase))
+        {
+            writeStdout = true;
+            continue;
+        }
+
+        return (jobPath, writeStdout, $"Unknown argument: {arg}");
+    }
+
+    if (string.IsNullOrWhiteSpace(jobPath))
+    {
+        return (jobPath, writeStdout, "Missing --job argument.");
+    }
+
+    return (jobPath, writeStdout, string.Empty);
+}
+
+static void ApplySignatureFields(PdfDocument pdf, SignatureJob job)
+{
     var form = PdfAcroForm.GetAcroForm(pdf, true);
     form.SetNeedAppearances(false);
 
@@ -121,25 +201,18 @@ try
         if (field.Rotation % 360 != 0)
         {
             var added = form.GetField(field.Name);
-            if (added is not null)
+            if (added is null)
             {
-                var dict = added.GetPdfObject();
-                var mk = dict.GetAsDictionary(PdfName.MK) ?? new PdfDictionary();
-                mk.Put(PdfName.R, new PdfNumber(((field.Rotation % 360) + 360) % 360));
-                dict.Put(PdfName.MK, mk);
+                continue;
             }
+
+            var dict = added.GetPdfObject();
+            var mk = dict.GetAsDictionary(PdfName.MK) ?? new PdfDictionary();
+            mk.Put(PdfName.R, new PdfNumber(((field.Rotation % 360) + 360) % 360));
+            dict.Put(PdfName.MK, mk);
         }
     }
-
-    pdf.Close();
 }
-catch (Exception ex)
-{
-    Console.Error.WriteLine($"Signature field injection failed: {ex}");
-    return 1;
-}
-
-return 0;
 
 internal sealed class SignatureJob
 {

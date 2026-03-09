@@ -255,6 +255,7 @@ internal static class PathResolver
 
         AddMissingFileIssue(issues, Path.Combine(backendRoot, BackendEntryFileName), "thieu backend/index.js");
         AddMissingFileIssue(issues, Path.Combine(backendRoot, BackendStampFileName), "thieu backend/pdfStamp.js");
+        AddMissingFileIssue(issues, Path.Combine(backendRoot, "config", "stamp-profiles.json"), "thieu backend/config/stamp-profiles.json");
         AddMissingFileIssue(issues, Path.Combine(backendRoot, BackendPackageFileName), "thieu backend/package.json");
 
         var nodeModulesRoot = Path.Combine(backendRoot, "node_modules");

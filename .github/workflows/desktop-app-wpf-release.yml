@@ -91,6 +91,10 @@ jobs:
       - name: Install backend dependencies
         run: npm ci --omit=dev
 
+      - name: Check backend mirror sync
+        shell: pwsh
+        run: ./scripts/check-backend-sync.ps1
+
       - name: Clean local artifacts
         shell: pwsh
         run: ./scripts/clean-local-artifacts.ps1

@@ -81,7 +81,21 @@ public sealed class BackendService : IBackendService
                     return;
                 }
 
-                Log.Warning("Backend stderr: {Error}", e.Data);
+                var line = e.Data.Trim();
+                Log.Warning("Backend stderr: {Error}", line);
+                TryWriteDevConsole($"[backend:stderr] {line}");
+            };
+
+            _backendProcess.OutputDataReceived += (_, e) =>
+            {
+                if (string.IsNullOrWhiteSpace(e.Data))
+                {
+                    return;
+                }
+
+                var line = e.Data.Trim();
+                Log.Information("Backend stdout: {Output}", line);
+                TryWriteDevConsole($"[backend] {line}");
             };
 
             _backendProcess.Exited += (_, _) =>
@@ -145,6 +159,18 @@ public sealed class BackendService : IBackendService
         }
     }
 
+    private static void TryWriteDevConsole(string line)
+    {
+        try
+        {
+            Console.WriteLine(line);
+        }
+        catch
+        {
+            // WPF release mode may not have an attached console.
+        }
+    }
+
     public async Task<Result> SyncGoogleSheetEndpointAsync(
         int port,
         string sheetId,
@@ -176,11 +202,11 @@ public sealed class BackendService : IBackendService
         try
         {
             Log.Information(
-                "Sheet sync request: sheetId={SheetId}, targetA1={TargetA1}, webhook={WebhookUrl}, endpoint={Endpoint}",
-                normalizedSheetId,
+                "Sheet sync request: sheetId={SheetIdMasked}, targetA1={TargetA1}, webhookHost={WebhookHost}, endpointHost={EndpointHost}",
+                MaskValue(normalizedSheetId),
                 normalizedTargetCell,
-                normalizedWebhookUrl,
-                normalizedEndpoint);
+                ExtractHost(normalizedWebhookUrl),
+                ExtractHost(normalizedEndpoint));
 
             using var response = await _apiHttpClient.PostAsJsonAsync(
                 $"http://127.0.0.1:{port}/api/google-sheet/set-endpoint",
@@ -224,11 +250,11 @@ public sealed class BackendService : IBackendService
 
             var parsed = TryParseBackendError(payload);
             Log.Warning(
-                "Sheet sync backend failed: status={Status}, code={Code}, message={Message}, payload={Payload}",
+                "Sheet sync backend failed: status={Status}, code={Code}, message={Message}, payloadLength={PayloadLength}",
                 (int)response.StatusCode,
                 parsed.ErrorCode,
                 parsed.Message,
-                payload);
+                payload?.Length ?? 0);
             if (ShouldFallbackToDirectWebhook(response.StatusCode, parsed))
             {
                 var fallback = await SyncDirectToWebhookAsync(
@@ -353,11 +379,11 @@ public sealed class BackendService : IBackendService
         try
         {
             Log.Information(
-                "Sheet sync direct webhook request: sheetId={SheetId}, targetA1={TargetA1}, webhook={WebhookUrl}, endpoint={Endpoint}",
-                sheetId,
+                "Sheet sync direct webhook request: sheetId={SheetIdMasked}, targetA1={TargetA1}, webhookHost={WebhookHost}, endpointHost={EndpointHost}",
+                MaskValue(sheetId),
                 targetCellA1,
-                webhookUrl,
-                endpointUrl);
+                ExtractHost(webhookUrl),
+                ExtractHost(endpointUrl));
 
             using var response = await _apiHttpClient.PostAsJsonAsync(
                 webhookUrl,
@@ -479,6 +505,40 @@ public sealed class BackendService : IBackendService
         }
 
         return false;
+    }
+
+    private static string MaskValue(string? value, int visible = 4)
+    {
+        var raw = (value ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return string.Empty;
+        }
+
+        if (raw.Length <= visible * 2)
+        {
+            return $"{raw[..1]}***{raw[^1..]}";
+        }
+
+        return $"{raw[..visible]}...{raw[^visible..]}";
+    }
+
+    private static string ExtractHost(string? url)
+    {
+        var raw = (url ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return string.Empty;
+        }
+
+        try
+        {
+            return new Uri(raw).Host;
+        }
+        catch
+        {
+            return "invalid-url";
+        }
     }
 
     private sealed class BackendErrorPayload

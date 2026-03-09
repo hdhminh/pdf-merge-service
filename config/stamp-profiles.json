@@ -1,0 +1,133 @@
+{
+  "version": 1,
+  "defaultProfile": "fallback_safe",
+  "classifier": {
+    "digitalMinTextItems": 24,
+    "digitalMinChars": 180,
+    "sparseMaxTextItems": 4,
+    "sparseMaxChars": 64,
+    "fullPageAspectDeltaMax": 0.1,
+    "fullPageImageMinWidthRatio": 0.8,
+    "fullPageImageMinHeightRatio": 0.8
+  },
+  "scanInkProbe": {
+    "enabled": true,
+    "maxProbeCount": 2,
+    "lumaThreshold": 244,
+    "alphaThreshold": 20,
+    "rowInkRatioMin": 0.003,
+    "colInkRatioMin": 0.0025,
+    "rowAdaptiveDelta": 0.02,
+    "colAdaptiveDelta": 0.015,
+    "minImageWidth": 120,
+    "minImageHeight": 120,
+    "rowSampleDivisor": 720,
+    "colSampleDivisor": 720
+  },
+  "profiles": {
+    "scan_sparse_portrait": {
+      "textLayout": {
+        "anchorToLastText": false,
+        "marginBottom": 96,
+        "marginLeft": 28,
+        "fullPageScanMinMarginBottom": 120,
+        "fullPageLowProbeFallbackRatio": 0.36
+      },
+      "signatureFields": {
+        "minBottom": 24,
+        "overlap": false,
+        "height": 52
+      }
+    },
+    "scan_dense_portrait": {
+      "textLayout": {
+        "anchorToLastText": false,
+        "marginBottom": 74,
+        "marginLeft": 28,
+        "fullPageScanMinMarginBottom": 108,
+        "fullPageLowProbeFallbackRatio": 0.34
+      },
+      "signatureFields": {
+        "minBottom": 20,
+        "overlap": false,
+        "height": 48
+      }
+    },
+    "scan_sparse_landscape": {
+      "textLayout": {
+        "anchorToLastText": false,
+        "marginBottom": 78,
+        "marginLeft": 20,
+        "fullPageScanMinMarginBottom": 96
+      },
+      "signatureFields": {
+        "minBottom": 20,
+        "overlap": false,
+        "height": 44
+      }
+    },
+    "scan_dense_landscape": {
+      "textLayout": {
+        "anchorToLastText": false,
+        "marginBottom": 62,
+        "marginLeft": 20,
+        "fullPageScanMinMarginBottom": 84
+      },
+      "signatureFields": {
+        "minBottom": 16,
+        "overlap": false,
+        "height": 40
+      }
+    },
+    "digital_text_portrait": {
+      "textLayout": {
+        "anchorToLastText": true,
+        "scanMode": "auto",
+        "marginLeft": 28,
+        "bottomSafeMargin": 36
+      },
+      "signatureFields": {
+        "minBottom": 12,
+        "overlap": true
+      }
+    },
+    "digital_text_landscape": {
+      "textLayout": {
+        "anchorToLastText": true,
+        "scanMode": "auto",
+        "marginLeft": 20,
+        "bottomSafeMargin": 30
+      },
+      "signatureFields": {
+        "minBottom": 10,
+        "overlap": true
+      }
+    },
+    "template_fixed_A": {
+      "textLayout": {
+        "anchorToLastText": false,
+        "marginBottom": 92,
+        "marginLeft": 28,
+        "fullPageScanMinMarginBottom": 112
+      },
+      "signatureFields": {
+        "minBottom": 24,
+        "overlap": false,
+        "height": 52
+      }
+    },
+    "fallback_safe": {
+      "textLayout": {
+        "anchorToLastText": false,
+        "marginBottom": 90,
+        "marginLeft": 28,
+        "fullPageScanMinMarginBottom": 108
+      },
+      "signatureFields": {
+        "minBottom": 24,
+        "overlap": false,
+        "height": 52
+      }
+    }
+  }
+}

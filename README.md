@@ -35,6 +35,12 @@ npm install
 
 # Local publish for desktop app
 ./scripts/publish-wpf-local.ps1 -Version 1.3.17-local -Channel stable
+
+# Sync root backend to desktop-app/backend mirror
+./scripts/sync-backend.ps1
+
+# Verify root backend and mirror are identical
+./scripts/check-backend-sync.ps1
 ```
 
 ## Environment
@@ -45,6 +51,9 @@ MAX_FILE_SIZE_BYTES=20971520
 GOOGLE_SHEET_SYNC_URL=
 GOOGLE_SHEET_SYNC_API_KEY=
 GOOGLE_SHEET_SYNC_TIMEOUT_MS=12000
+TEMP_FILE_MAX_AGE_MS=1800000
+TEMP_CLEANUP_INTERVAL_MS=300000
+PDF_STAMP_DISABLE_SIGNATURE_INJECT=false
 ```
 
 `GOOGLE_SHEET_SYNC_URL` is optional if desktop app sends `webhookUrl` in request payload.
@@ -75,7 +84,7 @@ sudo apt install -y ttf-mscorefonts-installer
 
 ```bash
 node index.js
-ngrok http 3000
+ngrok http 3000 --inspect=false
 ```
 
 Health check:
@@ -136,6 +145,8 @@ Request body example:
     "bodySize": 12.5,
     "panelOpacity": 0
   },
+  "profileName": "scan_sparse_portrait",
+  "logTiming": true,
   "signatureFields": {
     "enabled": true,
     "enterpriseName": "sig_enterprise",
@@ -156,11 +167,24 @@ Required fields:
 Notes:
 
 - `fonts` in payload is optional.
+- Backend supports profile-based layout via `config/stamp-profiles.json`.
+- `config/stamp-profiles.json` now includes `classifier` and `scanInkProbe` blocks so thresholds can be tuned without code changes.
+- Use `profileName`/`profile` to pick a specific profile manually.
+- If `profileName` is omitted, backend runs a lightweight classifier on the last page and auto-selects one of:
+  - `scan_sparse_portrait`, `scan_dense_portrait`
+  - `scan_sparse_landscape`, `scan_dense_landscape`
+  - `digital_text_portrait`, `digital_text_landscape`
+  - `fallback_safe` (low-confidence fallback)
+- Scan-first behavior: scan profiles default to fixed anchor (`anchorToLastText=false`) for stability on scanned documents.
+- For scan profiles, `textLayout.fullPageScanMinMarginBottom` provides a safety floor when page is detected as full-page scan.
 - Backend tries to anchor the stamp just below the last detected text or image content (ignoring the stamp text itself). If no content is found or there is not enough space, it falls back to the previous auto-margin based on displayed page height or `textLayout.marginBottom` if provided.
 - Control this behavior with `textLayout.anchorToLastText` (default `true`), `textLayout.lastTextGap` (default `12`), and `textLayout.minMarginBottom` (default `12`).
 - Auto-anchor scan mode: `textLayout.scanMode` supports `auto` (default), `textOnly`, and `textAndImages`.
 - In `auto`, backend detects whether the last page has embedded images. If yes, it scans text + images; if not, it scans text only for better speed.
+- Lightweight auto rule: for `digital_*` profiles in `scanMode=auto`, if page looks like full-page scan and there is no manual override, backend forces `textOnly` behavior (skip image-operator anchor scan).
 - Legacy override: `textLayout.scanImages` (`true`/`false`) still works and takes priority over `scanMode`.
+- Set `logTiming: false` (or env `PDF_STAMP_LOG_TIMING=false`) to disable per-request timing logs.
+- To skip .NET signature-field injection for speed tests, set `PDF_STAMP_DISABLE_SIGNATURE_INJECT=true` (or request `disableSignatureFieldInjection=true`).
 - `textLayout.notaryGap` controls the extra spacing before the notary line (default `4`).
 - `textLayout.bottomSafeMargin` keeps a minimum distance from the page bottom when auto-anchoring (default `36`).
 - `textLayout.panelOpacity` defaults to `0` (transparent). Set it > 0 to draw a white background.
@@ -179,6 +203,7 @@ Notes:
   - signature fields are injected by the .NET/iText helper at `tools/signature-field-tool/SignatureFieldTool`
 - Build helper before running backend:
   - `dotnet build tools/signature-field-tool/SignatureFieldTool/SignatureFieldTool.csproj -c Release`
+  - New helper mode `--stdout` is used by backend to reduce temp-file I/O.
   - Desktop app release bundles `SignatureFieldTool.exe` self-contained, so client machine does not need to install .NET runtime manually.
 - `signatureFields` controls field names and geometry (`enabled`, `enterpriseName`, `personalName`, `height`, `width`, `centerGap`, `lineGap`, `sideInset`, `replaceExisting`, `overlap`, `overlapOffsetX`, `overlapOffsetY`).
 - `replaceExisting` defaults to `true`: if a signature field with the same name already exists, backend replaces it instead of creating `_2`, `_3`, ...
@@ -241,6 +266,14 @@ Request:
   "endpoint": "https://xxxx.ngrok-free.app/api/pdf/stamp"
 }
 ```
+
+Regression check:
+
+```bash
+npm run test:stamp-regression
+```
+
+Edit `scripts/regression-cases.sample.json` to match your real scan files.
 
 Notes:
 

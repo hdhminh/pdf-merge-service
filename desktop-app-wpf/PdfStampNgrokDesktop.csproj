@@ -46,6 +46,10 @@
       <CopyToPublishDirectory>Always</CopyToPublishDirectory>
       <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
     </None>
+    <None Include="..\config\stamp-profiles.json" Link="backend\config\stamp-profiles.json" Condition="Exists('..\config\stamp-profiles.json')">
+      <CopyToPublishDirectory>Always</CopyToPublishDirectory>
+      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+    </None>
     <None Include="..\node_modules\**\*"
           Exclude="..\node_modules\**\*.map;
                    ..\node_modules\**\*.tsbuildinfo;
@@ -102,6 +106,7 @@
   <Target Name="ValidateBundledRuntimePayload" BeforeTargets="Publish" Condition="'$(ValidateBundledRuntimeOnPublish)' == 'true'">
     <Error Condition="!Exists('..\index.js')" Text="Publish blocked: missing backend file ..\index.js" />
     <Error Condition="!Exists('..\pdfStamp.js')" Text="Publish blocked: missing backend file ..\pdfStamp.js" />
+    <Error Condition="!Exists('..\config\stamp-profiles.json')" Text="Publish blocked: missing backend profile config ..\config\stamp-profiles.json." />
     <Error Condition="!Exists('..\package.json')" Text="Publish blocked: missing backend file ..\package.json" />
     <Error Condition="!Exists('..\node_modules')" Text="Publish blocked: missing ..\node_modules. Run npm ci --omit=dev." />
     <Error Condition="!Exists('..\node_modules\express\package.json')" Text="Publish blocked: missing node module express." />

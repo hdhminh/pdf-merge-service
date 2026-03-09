@@ -1,4 +1,5 @@
 using System.Net.Http;
+using System.Text.Json;
 using PdfStampNgrokDesktop.Core;
 using PdfStampNgrokDesktop.Helpers;
 
@@ -61,14 +62,30 @@ public sealed class HealthMonitorService : IHealthMonitorService
         var healthUrl = stampUrl.Replace("/api/pdf/stamp", "/health", StringComparison.OrdinalIgnoreCase);
         try
         {
-            using var response = await _httpClient.GetAsync(healthUrl, cancellationToken);
-            if (response.IsSuccessStatusCode)
+            using var request = new HttpRequestMessage(HttpMethod.Get, healthUrl);
+            request.Headers.TryAddWithoutValidation("ngrok-skip-browser-warning", "true");
+            using var response = await _httpClient.SendAsync(request, cancellationToken);
+            var payload = await response.Content.ReadAsStringAsync(cancellationToken);
+
+            if (response.IsSuccessStatusCode && IsHealthyJsonPayload(payload))
             {
                 return Result<LinkHealthState>.Ok(new LinkHealthState
                 {
                     Indicator = LinkIndicator.Healthy,
                     BadgeText = UiText.Get("BadgeLinkReadyText", "Da co link"),
                     StatusText = UiText.Get("StatusEndpointHealthy", "Endpoint hoat dong binh thuong."),
+                    StampUrl = stampUrl,
+                });
+            }
+
+            var mappedNgrokError = MapNgrokError(payload);
+            if (!string.IsNullOrWhiteSpace(mappedNgrokError))
+            {
+                return Result<LinkHealthState>.Ok(new LinkHealthState
+                {
+                    Indicator = LinkIndicator.Error,
+                    BadgeText = UiText.Get("BadgeLinkErrorText", "Link loi"),
+                    StatusText = mappedNgrokError,
                     StampUrl = stampUrl,
                 });
             }
@@ -91,5 +108,52 @@ public sealed class HealthMonitorService : IHealthMonitorService
                 StampUrl = stampUrl,
             });
         }
+    }
+
+    private static bool IsHealthyJsonPayload(string payload)
+    {
+        if (string.IsNullOrWhiteSpace(payload))
+        {
+            return false;
+        }
+
+        try
+        {
+            using var doc = JsonDocument.Parse(payload);
+            return doc.RootElement.ValueKind == JsonValueKind.Object
+                && doc.RootElement.TryGetProperty("success", out var successProp)
+                && successProp.ValueKind == JsonValueKind.True;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private static string MapNgrokError(string payload)
+    {
+        if (string.IsNullOrWhiteSpace(payload))
+        {
+            return string.Empty;
+        }
+
+        var text = payload.ToLowerInvariant();
+        if (text.Contains("err_ngrok_8012")
+            || text.Contains("failed to establish a connection to the upstream web service"))
+        {
+            return "Ngrok da tao duoc link nhung backend local chua san sang (ERR_NGROK_8012).";
+        }
+
+        if (text.Contains("err_ngrok_6024"))
+        {
+            return "Ngrok dang tra trang canh bao trinh duyet (ERR_NGROK_6024).";
+        }
+
+        if (text.Contains("<!doctype html") && text.Contains("ngrok"))
+        {
+            return "Public URL dang tra trang HTML loi thay vi JSON backend.";
+        }
+
+        return string.Empty;
     }
 }
