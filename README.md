@@ -199,7 +199,8 @@ Notes:
 - By default, backend adds 2 unsigned PDF signature fields that Foxit Reader can detect:
   - enterprise field (`sig_enterprise`)
   - personal field (`sig_personal`)
-  - personal field is placed below enterprise with 25% vertical overlap
+  - enterprise field is shifted left by 10% field width
+  - personal field is placed lower-right with 20% vertical overlap
   - signature fields are injected by the .NET/iText helper at `tools/signature-field-tool/SignatureFieldTool`
 - Build helper before running backend:
   - `dotnet build tools/signature-field-tool/SignatureFieldTool/SignatureFieldTool.csproj -c Release`
@@ -209,8 +210,8 @@ Notes:
 - `replaceExisting` defaults to `true`: if a signature field with the same name already exists, backend replaces it instead of creating `_2`, `_3`, ...
 - `signatureFields.overlap` defaults to `true` (stacked/overlapped layout). Set `overlap: false` to separate left/right fields.
 - `overlapOffsetX` / `overlapOffsetY` controls offset between overlapped fields.
-  - default `overlapOffsetX` is `0`
-  - default `overlapOffsetY` is `-25%` of field height (personal field lower)
+  - default `overlapOffsetX` is `-10%` of field width (enterprise field left-shifted)
+  - default `overlapOffsetY` is `-20%` of field height (personal field lower)
   - default `signatureFields.borderWidth` is `0` (hidden frame border)
   - Set `overlapOffsetX` explicitly if you want another value.
 - You can override orientation-specific layout with `portrait` / `landscape` buckets:
