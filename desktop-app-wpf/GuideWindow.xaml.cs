@@ -93,7 +93,7 @@ public partial class GuideWindow : Window
         }
     }
 
-    private void GuideWindow_PreviewKeyDown(object sender, KeyEventArgs e)
+    private void GuideWindow_PreviewKeyDown(object sender, System.Windows.Input.KeyEventArgs e)
     {
         switch (e.Key)
         {

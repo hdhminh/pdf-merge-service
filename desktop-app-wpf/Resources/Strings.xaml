@@ -19,6 +19,26 @@
     <sys:String x:Key="CopyButton">Copy</sys:String>
     <sys:String x:Key="CreateLinkButton">Tạo link</sys:String>
     <sys:String x:Key="CancelLinkButton">Hủy link</sys:String>
+    <sys:String x:Key="TrayCreateLinkMenu">Tạo link</sys:String>
+    <sys:String x:Key="TrayCopyLinkMenu">Copy link</sys:String>
+    <sys:String x:Key="TrayCancelLinkMenu">Hủy link</sys:String>
+    <sys:String x:Key="TrayExitMenu">Thoát</sys:String>
+    <sys:String x:Key="TrayRunningTitle">App đang chạy nền</sys:String>
+    <sys:String x:Key="TrayRunningBody">Bấm icon để mở lại ứng dụng.</sys:String>
+    <sys:String x:Key="TrayAutoLinkSuccessTitle">Đã có link</sys:String>
+    <sys:String x:Key="TrayAutoLinkSuccessBody">App đã tự tạo link sau khi khởi động.</sys:String>
+    <sys:String x:Key="TrayAutoLinkFailTitle">Không tự tạo được link</sys:String>
+    <sys:String x:Key="TrayAutoLinkFailBody">Bấm icon để mở app và tạo link thủ công.</sys:String>
+    <sys:String x:Key="TrayCreateLinkSuccessTitle">Đã tạo link</sys:String>
+    <sys:String x:Key="TrayCreateLinkSuccessBody">Link stamp đã sẵn sàng.</sys:String>
+    <sys:String x:Key="TrayCreateLinkFailTitle">Tạo link thất bại</sys:String>
+    <sys:String x:Key="TrayCopyLinkSuccessTitle">Đã copy link</sys:String>
+    <sys:String x:Key="TrayCopyLinkSuccessBody">Link đã được copy vào clipboard.</sys:String>
+    <sys:String x:Key="TrayCopyLinkFailTitle">Không copy được</sys:String>
+    <sys:String x:Key="TrayCopyLinkFailBody">Chưa có link để copy.</sys:String>
+    <sys:String x:Key="TrayCancelLinkSuccessTitle">Đã hủy link</sys:String>
+    <sys:String x:Key="TrayCancelLinkSuccessBody">Link ngrok đã được hủy.</sys:String>
+    <sys:String x:Key="TrayCancelLinkFailTitle">Hủy link thất bại</sys:String>
     <sys:String x:Key="GoogleSheetGroupHeader">Google Sheet</sys:String>
     <sys:String x:Key="GoogleSheetIdPlaceholder">Google Sheet ID (không cần link)</sys:String>
     <sys:String x:Key="GoogleSheetIdTooltip">Chỉ nhập Google Sheet ID (không cần dán full link)</sys:String>
@@ -34,6 +54,10 @@
     <sys:String x:Key="BadgeLinkErrorText">Link lỗi</sys:String>
     <sys:String x:Key="BadgeNgrokErrorText">Lỗi ngrok</sys:String>
     <sys:String x:Key="BadgeErrorText">Lỗi</sys:String>
+    <sys:String x:Key="TrayStatusReady">Sẵn sàng</sys:String>
+    <sys:String x:Key="TrayStatusCreating">Đang tạo link</sys:String>
+    <sys:String x:Key="TrayStatusLinkReady">Đã có link</sys:String>
+    <sys:String x:Key="TrayStatusBackendLost">Mất backend</sys:String>
     <sys:String x:Key="CopyDoneButton">Đã copy</sys:String>
     <sys:String x:Key="UpdateChannelHintTemplate">Kênh cập nhật: {0}</sys:String>
 

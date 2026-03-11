@@ -10,6 +10,7 @@
         MinHeight="560"
         MinWidth="560"
         SizeToContent="Height"
+        ShowInTaskbar="False"
         WindowStartupLocation="CenterScreen"
         Background="{StaticResource BrushBackground}"
         FontFamily="Segoe UI"

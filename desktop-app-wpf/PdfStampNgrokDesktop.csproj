@@ -6,6 +6,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
     <StartupObject>PdfStampNgrokDesktop.Program</StartupObject>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <AssemblyTitle>Sao Y Điện Tử PDF</AssemblyTitle>
@@ -24,6 +25,10 @@
     <UpdateRepoUrl Condition="'$(UpdateRepoUrl)' == ''">https://github.com/your-org/your-repo</UpdateRepoUrl>
     <UpdateChannel Condition="'$(UpdateChannel)' == ''">stable</UpdateChannel>
   </PropertyGroup>
+  <ItemGroup>
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+  </ItemGroup>
   <ItemGroup>
     <Resource Include="Assets\app.ico" />
     <Resource Include="Assets\logo.png" />

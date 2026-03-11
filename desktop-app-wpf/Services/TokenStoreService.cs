@@ -243,6 +243,9 @@ public sealed class TokenStoreService : ITokenStoreService
             Ui = new UiConfig
             {
                 AutoCopyOnGenerate = input.Ui?.AutoCopyOnGenerate ?? false,
+                MinimizeToTray = input.Ui?.MinimizeToTray ?? true,
+                AutoCreateLinkOnStartup = input.Ui?.AutoCreateLinkOnStartup ?? true,
+                StartWithWindows = input.Ui?.StartWithWindows ?? false,
             },
             GoogleSheet = new GoogleSheetConfig
             {

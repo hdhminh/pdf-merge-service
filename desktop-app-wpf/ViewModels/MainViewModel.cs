@@ -53,6 +53,7 @@ public sealed class MainViewModel : ObservableObject
     private string _copyButtonText = UiText.Get("CopyButton", "Copy");
     private string _badgeText = UiText.Get("IdleBadgeText", "Chua co link");
     private LinkIndicator _badgeIndicator = LinkIndicator.Idle;
+    private bool _isBackendLostForTray;
     private UpdateChannel _selectedUpdateChannel = UpdateChannel.Stable;
     private string _updateHint = UiText.Format("UpdateChannelHintTemplate", "Kenh cap nhat: {0}", "stable");
     private bool _isDeveloperGoogleSheetPanelVisible;
@@ -82,7 +83,7 @@ public sealed class MainViewModel : ObservableObject
         RemoveTokenCommand = new AsyncRelayCommand(RemoveTokenAsync, CanRemoveTokenAction);
         CreateLinkCommand = new AsyncRelayCommand(CreateLinkAsync, CanCreateLinkAction);
         CancelLinkCommand = new AsyncRelayCommand(CancelLinkAsync, CanCancelLink);
-        CopyCommand = new RelayCommand(CopyStampUrl, CanCopy);
+        CopyCommand = new AsyncRelayCommand(CopyStampUrlAsync, CanCopy);
         ToggleRevealCommand = new RelayCommand(ToggleRevealTokenInput, () => !_busy);
         UnlockCommand = new RelayCommand(UnlockSession, () => IsSessionLocked);
         RestoreBackupCommand = new AsyncRelayCommand(RestoreBackupAsync, () => !_busy);
@@ -267,6 +268,12 @@ public sealed class MainViewModel : ObservableObject
         private set => SetProperty(ref _badgeIndicator, value);
     }
 
+    public bool IsBackendLostForTray
+    {
+        get => _isBackendLostForTray;
+        private set => SetProperty(ref _isBackendLostForTray, value);
+    }
+
     public bool IsBusy
     {
         get => _busy;
@@ -296,6 +303,14 @@ public sealed class MainViewModel : ObservableObject
         get => _updateHint;
         private set => SetProperty(ref _updateHint, value);
     }
+
+    public bool MinimizeToTrayEnabled => _config.Ui.MinimizeToTray;
+
+    public bool AutoCreateLinkOnStartupEnabled => _config.Ui.AutoCreateLinkOnStartup;
+
+    public bool StartWithWindowsEnabled => _config.Ui.StartWithWindows;
+
+    public bool HasActiveProfile => !string.IsNullOrWhiteSpace(GetActiveProfileId());
 
     public async Task InitializeAsync()
     {
@@ -354,6 +369,70 @@ public sealed class MainViewModel : ObservableObject
     public void NotifyUserActivity()
     {
         _lastActivityUtc = DateTime.UtcNow;
+    }
+
+    public async Task<Result> CreateLinkFromTrayAsync()
+    {
+        return await CreateLinkCoreAsync(notifyUserActivity: false);
+    }
+
+    public async Task<Result> CancelLinkFromTrayAsync()
+    {
+        return await CancelLinkCoreAsync(notifyUserActivity: false);
+    }
+
+    public async Task<Result> CopyLinkFromTrayAsync()
+    {
+        return await CopyStampUrlCoreAsync(notifyUserActivity: false);
+    }
+
+    public async Task<Result> TryAutoCreateLinkOnStartupAsync(int maxAttempts = 2)
+    {
+        if (!AutoCreateLinkOnStartupEnabled || !_config.Ngrok.AutoStart)
+        {
+            return Result.Ok("Auto startup tao link dang tat.");
+        }
+
+        if (IsSessionLocked)
+        {
+            return Result.Fail(ErrorCode.Unauthorized, UiText.Get("ErrorSessionLocked", "Phien dang khoa. Bam 'Mo khoa phien' truoc."));
+        }
+
+        var activeId = GetActiveProfileId();
+        if (string.IsNullOrWhiteSpace(activeId))
+        {
+            return Result.Fail(
+                ErrorCode.InvalidInput,
+                UiText.Get("ErrorNeedTokenBeforeCreateLink", "Ban can them token truoc khi tao link."));
+        }
+
+        if (!string.IsNullOrWhiteSpace(StampUrl))
+        {
+            return Result.Ok(UiText.Get("StatusLinkCreated", "Da tao link."));
+        }
+
+        var attempts = Math.Max(1, maxAttempts);
+        Result lastFailure = Result.Fail(ErrorCode.Unknown, "Khong tao duoc link khi khoi dong.");
+
+        for (var attempt = 1; attempt <= attempts; attempt++)
+        {
+            Log.Information("Startup auto-link attempt {Attempt}/{Attempts}.", attempt, attempts);
+
+            var result = await CreateLinkCoreAsync(notifyUserActivity: false);
+            if (result.IsSuccess)
+            {
+                return result;
+            }
+
+            lastFailure = result;
+            if (attempt < attempts)
+            {
+                var delay = TimeSpan.FromSeconds(Math.Min(2, attempt));
+                await Task.Delay(delay);
+            }
+        }
+
+        return lastFailure;
     }
 
     private async void RefreshTimer_Tick(object? sender, EventArgs e)
@@ -579,16 +658,33 @@ public sealed class MainViewModel : ObservableObject
 
     private async Task CreateLinkAsync()
     {
+        _ = await CreateLinkCoreAsync(notifyUserActivity: true);
+    }
+
+    private async Task CancelLinkAsync()
+    {
+        _ = await CancelLinkCoreAsync(notifyUserActivity: true);
+    }
+
+    private async Task CopyStampUrlAsync()
+    {
+        _ = await CopyStampUrlCoreAsync(notifyUserActivity: true);
+    }
+
+    private async Task<Result> CreateLinkCoreAsync(bool notifyUserActivity)
+    {
         if (!EnsureUnlocked())
         {
-            return;
+            return Result.Fail(
+                ErrorCode.Unauthorized,
+                UiText.Get("ErrorSessionLocked", "Phien dang khoa. Bam 'Mo khoa phien' truoc."));
         }
 
         var tokenResult = GetActivePlainToken();
         if (!tokenResult.IsSuccess || string.IsNullOrWhiteSpace(tokenResult.Value))
         {
             SetUiError(tokenResult.Message, tokenResult.Code);
-            return;
+            return Result.Fail(tokenResult.Code, tokenResult.Message);
         }
 
         IsBusy = true;
@@ -601,7 +697,7 @@ public sealed class MainViewModel : ObservableObject
             if (!backend.IsSuccess)
             {
                 SetUiError(backend.Message, backend.Code);
-                return;
+                return Result.Fail(backend.Code, backend.Message);
             }
 
             var startNgrok = await _ngrokService.StartAsync(_config.Backend.Port, tokenResult.Value, _config.Ngrok.Region, restart: false);
@@ -609,15 +705,16 @@ public sealed class MainViewModel : ObservableObject
             {
                 _keepTunnelAlive = false;
                 SetUiError(startNgrok.Message, startNgrok.Code);
-                return;
+                return Result.Fail(startNgrok.Code, startNgrok.Message);
             }
 
             var tunnel = await WaitForTunnelAsync(TimeSpan.FromSeconds(15));
             if (tunnel is null)
             {
                 _keepTunnelAlive = false;
-                SetUiError(UiText.Get("ErrorNgrokTunnelUnavailable", "Khong lay duoc tunnel ngrok."), ErrorCode.NgrokTunnelUnavailable);
-                return;
+                var message = UiText.Get("ErrorNgrokTunnelUnavailable", "Khong lay duoc tunnel ngrok.");
+                SetUiError(message, ErrorCode.NgrokTunnelUnavailable);
+                return Result.Fail(ErrorCode.NgrokTunnelUnavailable, message);
             }
 
             StampUrl = tunnel.StampUrl;
@@ -634,15 +731,19 @@ public sealed class MainViewModel : ObservableObject
 
             StatusMessage = UiText.Get("StatusLinkCreated", "Da tao link.");
             RealtimeState = UiText.Get("StateReady", "Da san sang");
+            return Result.Ok(StatusMessage);
         }
         finally
         {
             IsBusy = false;
-            NotifyUserActivity();
+            if (notifyUserActivity)
+            {
+                NotifyUserActivity();
+            }
         }
     }
 
-    private async Task CancelLinkAsync()
+    private async Task<Result> CancelLinkCoreAsync(bool notifyUserActivity)
     {
         IsBusy = true;
         RealtimeState = UiText.Get("StateChecking", "Dang kiem tra");
@@ -654,20 +755,35 @@ public sealed class MainViewModel : ObservableObject
             StampUrl = string.Empty;
             RealtimeState = UiText.Get("StateReady", "Da san sang");
             StatusMessage = UiText.Get("StatusLinkCancelled", "Da huy link.");
+            return Result.Ok(StatusMessage);
         }
         finally
         {
             IsBusy = false;
             await RefreshHealthAsync();
+            if (notifyUserActivity)
+            {
+                NotifyUserActivity();
+            }
         }
     }
 
-    private void CopyStampUrl()
+    private async Task<Result> CopyStampUrlCoreAsync(bool notifyUserActivity)
     {
         var value = (StampUrl ?? string.Empty).Trim();
         if (string.IsNullOrWhiteSpace(value))
         {
-            return;
+            var createResult = await CreateLinkCoreAsync(notifyUserActivity: false);
+            if (!createResult.IsSuccess)
+            {
+                return Result.Fail(createResult.Code, createResult.Message);
+            }
+
+            value = (StampUrl ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return Result.Fail(ErrorCode.InvalidInput, "Khong co link de copy.");
+            }
         }
 
         Clipboard.SetText(value);
@@ -676,7 +792,12 @@ public sealed class MainViewModel : ObservableObject
         _copyFeedbackTimer.Start();
         StatusMessage = UiText.Get("StatusLinkCopied", "Da copy link.");
         RealtimeState = UiText.Get("StateReady", "Da san sang");
-        NotifyUserActivity();
+        if (notifyUserActivity)
+        {
+            NotifyUserActivity();
+        }
+
+        return Result.Ok(StatusMessage);
     }
 
     private void ToggleRevealTokenInput()
@@ -787,6 +908,7 @@ public sealed class MainViewModel : ObservableObject
         {
             BadgeIndicator = LinkIndicator.Error;
             BadgeText = UiText.Get("BadgeErrorText", "Loi");
+            await UpdateBackendTrayStateAsync();
             return;
         }
 
@@ -803,6 +925,20 @@ public sealed class MainViewModel : ObservableObject
                 _ => UiText.Get("StateReady", "Da san sang"),
             };
         }
+
+        await UpdateBackendTrayStateAsync();
+    }
+
+    private async Task UpdateBackendTrayStateAsync()
+    {
+        var shouldProbeBackend = _ngrokService.IsRunning || !string.IsNullOrWhiteSpace(StampUrl) || IsBusy;
+        if (!shouldProbeBackend)
+        {
+            IsBackendLostForTray = false;
+            return;
+        }
+
+        IsBackendLostForTray = !await _backendService.IsHealthyAsync(_config.Backend.Port);
     }
 
     private async Task TrySelfRecoverTunnelAsync()
@@ -1150,7 +1286,8 @@ public sealed class MainViewModel : ObservableObject
 
     private bool CanCopy()
     {
-        return !_busy && !string.IsNullOrWhiteSpace(StampUrl);
+        var hasLink = !string.IsNullOrWhiteSpace(StampUrl);
+        return !_busy && !IsSessionLocked && (hasLink || HasSelectedProfile());
     }
 
     private void NotifyCommandStates()
@@ -1180,7 +1317,7 @@ public sealed class MainViewModel : ObservableObject
             cancel.NotifyCanExecuteChanged();
         }
 
-        if (CopyCommand is RelayCommand copy)
+        if (CopyCommand is AsyncRelayCommand copy)
         {
             copy.NotifyCanExecuteChanged();
         }

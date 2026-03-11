@@ -21,6 +21,12 @@ public sealed class NgrokConfig
 public sealed class UiConfig
 {
     public bool AutoCopyOnGenerate { get; set; }
+
+    public bool MinimizeToTray { get; set; } = true;
+
+    public bool AutoCreateLinkOnStartup { get; set; } = true;
+
+    public bool StartWithWindows { get; set; }
 }
 
 public sealed class GoogleSheetConfig
