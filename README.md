@@ -50,15 +50,6 @@ npm install
   - `NOTICE` (ownership and contact)
   - `docs/legal/DMCA_TAKEDOWN_TEMPLATE.md` (ready-to-use takedown template)
 
-## Commit/Tag Signing
-
-- Setup guide: `docs/security/COMMIT_TAG_SIGNING.md`
-- Quick local check:
-
-```powershell
-./scripts/check-git-signing.ps1
-```
-
 ## Environment
 
 ```env
