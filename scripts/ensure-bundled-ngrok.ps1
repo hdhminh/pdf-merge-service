@@ -14,15 +14,20 @@ if (Test-Path $targetExe) {
 New-Item -ItemType Directory -Path $TargetDir -Force | Out-Null
 $zipPath = Join-Path $env:TEMP "ngrok-v3-windows-amd64.zip"
 
-$fallbackHash = "ff53d0913ae2dd4a49b9047a93c0fb838579a435af71cec35d4763170f960aab"
+$fallbackHashes = @(
+    # Current vendor hash (verified 2026-03-11)
+    "c5909c7743497f3e390c965c8d9875832eb83ba5ebb8e25ffe07c7c8c4f36f14",
+    # Previous trusted hash kept for vendor rollbacks
+    "ff53d0913ae2dd4a49b9047a93c0fb838579a435af71cec35d4763170f960aab"
+)
 $providedHash = if ($null -eq $ExpectedZipSha256) { "" } else { $ExpectedZipSha256.Trim().ToLowerInvariant() }
 
 Invoke-WebRequest -Uri "https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-windows-amd64.zip" -OutFile $zipPath
 $actualHash = (Get-FileHash -Path $zipPath -Algorithm SHA256).Hash.ToLowerInvariant()
 
-$acceptedHashes = @($fallbackHash)
+$acceptedHashes = @($fallbackHashes)
 if ($providedHash) {
-    $acceptedHashes = @($providedHash, $fallbackHash)
+    $acceptedHashes = @($providedHash) + $fallbackHashes
 }
 
 if ($acceptedHashes -notcontains $actualHash) {
