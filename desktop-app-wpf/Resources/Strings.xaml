@@ -135,6 +135,8 @@
     <sys:String x:Key="GuideStep3Body">Tại màn hình Token của phần mềm: nhập tên profile, dán AuthToken vào ô "Nhập AuthToken", sau đó bấm "Thêm token" và chọn "Dùng".</sys:String>
     <sys:String x:Key="GuideStep4Title">Bước 4 - Tạo link và cập nhật Google Sheet tự động</sys:String>
     <sys:String x:Key="GuideStep4Body">Bấm "Tạo link" để khởi động tunnel. App sẽ tự động cập nhật endpoint vào ô Google Sheet đã cấu hình. Chỉ bấm "Copy" khi bạn cần dán endpoint thủ công ở nơi khác.</sys:String>
+    <sys:String x:Key="GuideStep5Title">Bước 5 - Ký đúng ô ký doanh nghiệp và ô ký cá nhân</sys:String>
+    <sys:String x:Key="GuideStep5Body">Ô lệch trái là ký doanh nghiệp (con dấu). Ô phía dưới bên phải là ký cá nhân (công chứng viên).</sys:String>
 
     <sys:String x:Key="StartupErrorMessageTemplate">Ứng dụng không khởi động được.&#10;Xem log tại %APPDATA%\PdfStampNgrokDesktop\logs.&#10;{0}</sys:String>
     <sys:String x:Key="StartupErrorTitle">Lỗi khởi động</sys:String>

@@ -71,7 +71,8 @@ const BUILTIN_STAMP_PROFILES = Object.freeze({
       },
       signatureFields: {
         minBottom: 24,
-        overlap: false,
+        overlap: true,
+        overlapOffsetYRatio: -0.2,
         height: 52,
       },
     },
@@ -84,7 +85,8 @@ const BUILTIN_STAMP_PROFILES = Object.freeze({
       },
       signatureFields: {
         minBottom: 20,
-        overlap: false,
+        overlap: true,
+        overlapOffsetYRatio: -0.2,
         height: 48,
       },
     },
@@ -97,7 +99,8 @@ const BUILTIN_STAMP_PROFILES = Object.freeze({
       },
       signatureFields: {
         minBottom: 20,
-        overlap: false,
+        overlap: true,
+        overlapOffsetYRatio: -0.2,
         height: 44,
       },
     },
@@ -110,7 +113,8 @@ const BUILTIN_STAMP_PROFILES = Object.freeze({
       },
       signatureFields: {
         minBottom: 16,
-        overlap: false,
+        overlap: true,
+        overlapOffsetYRatio: -0.2,
         height: 40,
       },
     },
@@ -124,6 +128,7 @@ const BUILTIN_STAMP_PROFILES = Object.freeze({
       signatureFields: {
         minBottom: 12,
         overlap: true,
+        overlapOffsetYRatio: -0.2,
       },
     },
     digital_text_landscape: {
@@ -136,6 +141,7 @@ const BUILTIN_STAMP_PROFILES = Object.freeze({
       signatureFields: {
         minBottom: 10,
         overlap: true,
+        overlapOffsetYRatio: -0.2,
       },
     },
     template_fixed_A: {
@@ -147,7 +153,8 @@ const BUILTIN_STAMP_PROFILES = Object.freeze({
       },
       signatureFields: {
         minBottom: 24,
-        overlap: false,
+        overlap: true,
+        overlapOffsetYRatio: -0.2,
         height: 52,
       },
     },
@@ -160,7 +167,8 @@ const BUILTIN_STAMP_PROFILES = Object.freeze({
       },
       signatureFields: {
         minBottom: 24,
-        overlap: false,
+        overlap: true,
+        overlapOffsetYRatio: -0.2,
         height: 52,
       },
     },
@@ -724,6 +732,7 @@ function transformPointByMatrix(point, matrix) {
 
 function mapDisplayRectToPageRect(page, pageMetrics, rect) {
   const matrix = getDisplayToPageMatrix(page, pageMetrics);
+  const box = getPageBoxMetrics(page, pageMetrics);
   const points = [
     transformPointByMatrix({ x: rect.x, y: rect.y }, matrix),
     transformPointByMatrix({ x: rect.x + rect.width, y: rect.y }, matrix),
@@ -741,12 +750,14 @@ function mapDisplayRectToPageRect(page, pageMetrics, rect) {
   const minY = Math.min(...ys);
   const maxY = Math.max(...ys);
 
-  const pageWidth = page.getWidth();
-  const pageHeight = page.getHeight();
-  const x = Math.max(0, Math.min(minX, pageWidth - 1));
-  const y = Math.max(0, Math.min(minY, pageHeight - 1));
-  const width = Math.max(1, Math.min(maxX - minX, pageWidth - x));
-  const height = Math.max(1, Math.min(maxY - minY, pageHeight - y));
+  const left = box.minX;
+  const bottom = box.minY;
+  const right = box.minX + box.width;
+  const top = box.minY + box.height;
+  const x = Math.max(left, Math.min(minX, right - 1));
+  const y = Math.max(bottom, Math.min(minY, top - 1));
+  const width = Math.max(1, Math.min(maxX - minX, right - x));
+  const height = Math.max(1, Math.min(maxY - minY, top - y));
 
   return { x, y, width, height };
 }
@@ -803,8 +814,8 @@ function resolveBlendMode(value, fallback) {
 
 function getPanelHeight(layout) {
   const panelPaddingY = toNumber(layout.panelPaddingY, 8);
-  const headingSize = toNumber(layout.headingSize, 15);
-  const bodySize = toNumber(layout.bodySize, 12.5);
+  const headingSize = toNumber(layout.headingSize, 13);
+  const bodySize = toNumber(layout.bodySize, 11.5);
   const lineGap = toNumber(layout.lineGap, 4);
   const notaryGap = toNumber(layout.notaryGap, 4);
 
@@ -2314,7 +2325,7 @@ function getAnchorPosition(pageMetrics, layout, boxWidth, boxHeight) {
 
 function drawBottomRightImage(page, image, layout, pageMetrics) {
   if (!image) {
-    return;
+    return null;
   }
 
   const pageHeight = toNumber(pageMetrics?.visualHeight, page.getHeight());
@@ -2352,6 +2363,77 @@ function drawBottomRightImage(page, image, layout, pageMetrics) {
   }
 
   page.drawImage(image, drawOptions);
+  return {
+    x,
+    y,
+    width: targetWidth,
+    height: targetHeight,
+  };
+}
+
+function drawPersonalSignatureNearOfficeSignature(
+  page,
+  signatureImage,
+  signatureLayout,
+  pageMetrics,
+  officeSignatureRect,
+) {
+  if (!signatureImage || !officeSignatureRect) {
+    return drawBottomRightImage(page, signatureImage, signatureLayout, pageMetrics);
+  }
+
+  if (signatureLayout?.attachToOfficeSignature === false) {
+    return drawBottomRightImage(page, signatureImage, signatureLayout, pageMetrics);
+  }
+
+  const targetWidth = toNumber(signatureLayout.width, 140);
+  const targetHeight = toNumber(
+    signatureLayout.height,
+    (signatureImage.height / signatureImage.width) * targetWidth,
+  );
+  const opacity = toNumber(signatureLayout.opacity, 1);
+  const blendMode = resolveBlendMode(signatureLayout.blendMode, undefined);
+  const offsetX = toNumber(signatureLayout.officeOffsetX, 0);
+  const ratioY = toNumber(signatureLayout.officeOffsetYRatio, -0.2);
+  const offsetY = hasNumericValue(signatureLayout.officeOffsetY)
+    ? Number(signatureLayout.officeOffsetY)
+    : officeSignatureRect.height * ratioY;
+  const alignRaw =
+    typeof signatureLayout.officeAlign === "string"
+      ? signatureLayout.officeAlign.trim().toLowerCase()
+      : "";
+
+  let x = officeSignatureRect.x + offsetX;
+  if (alignRaw === "center" || !alignRaw) {
+    x = officeSignatureRect.x + (officeSignatureRect.width - targetWidth) / 2 + offsetX;
+  } else if (alignRaw === "right") {
+    x = officeSignatureRect.x + officeSignatureRect.width - targetWidth + offsetX;
+  }
+
+  let y = officeSignatureRect.y + offsetY;
+  const visualWidth = toNumber(pageMetrics?.visualWidth, page.getWidth());
+  const visualHeight = toNumber(pageMetrics?.visualHeight, page.getHeight());
+  x = Math.max(0, Math.min(x, Math.max(0, visualWidth - targetWidth)));
+  y = Math.max(0, Math.min(y, Math.max(0, visualHeight - targetHeight)));
+
+  const drawOptions = {
+    x,
+    y,
+    width: targetWidth,
+    height: targetHeight,
+    opacity,
+  };
+  if (blendMode) {
+    drawOptions.blendMode = blendMode;
+  }
+
+  page.drawImage(signatureImage, drawOptions);
+  return {
+    x,
+    y,
+    width: targetWidth,
+    height: targetHeight,
+  };
 }
 
 function drawCopyStampText(page, data, layout, pageMetrics) {
@@ -2360,7 +2442,7 @@ function drawCopyStampText(page, data, layout, pageMetrics) {
   }
 
   const pageHeight = toNumber(pageMetrics?.visualHeight, page.getHeight());
-  const fontSize = toNumber(layout.size, 20);
+  const fontSize = toNumber(layout.size, 18);
   const paddingX = toNumber(layout.paddingX, 8);
   const paddingY = toNumber(layout.paddingY, 4);
   const borderWidth = toNumber(layout.borderWidth, 3);
@@ -2450,8 +2532,8 @@ function getCertificationPanelGeometry(page, data, layout, pageMetrics) {
     : Math.max(72, pageHeight * 0.12);
   const panelPaddingX = toNumber(layout.panelPaddingX, 10);
   const panelPaddingY = toNumber(layout.panelPaddingY, 8);
-  const headingSize = toNumber(layout.headingSize, 15);
-  const bodySize = toNumber(layout.bodySize, 12.5);
+  const headingSize = toNumber(layout.headingSize, 13);
+  const bodySize = toNumber(layout.bodySize, 11.5);
   const lineGap = toNumber(layout.lineGap, 4);
   const notaryGap = toNumber(layout.notaryGap, 4);
   const maxPanelWidth = toNumber(layout.maxPanelWidth, pageWidth * 0.74);
@@ -2576,11 +2658,19 @@ function addSignatureFieldsForFoxit(
     toNumber(signatureFieldsLayout?.sideInset, panelGeometry.panelPaddingX),
   );
   let centerGap = Math.max(0, toNumber(signatureFieldsLayout?.centerGap, 20));
-  const lineGap = Math.max(0, toNumber(signatureFieldsLayout?.lineGap, 8));
+  const lineGap = Math.max(0, toNumber(signatureFieldsLayout?.lineGap, 6));
   const minBottom = Math.max(0, toNumber(signatureFieldsLayout?.minBottom, 8));
   const minHeight = Math.max(10, toNumber(signatureFieldsLayout?.minHeight, 12));
+  const minUsableHeight = Math.max(
+    minHeight,
+    toNumber(signatureFieldsLayout?.minUsableHeight, 36),
+  );
   const minWidth = Math.max(24, toNumber(signatureFieldsLayout?.minWidth, 120));
   const overlap = signatureFieldsLayout?.overlap !== false;
+  const enterpriseShiftLeftRatio = Math.max(
+    0,
+    toNumber(signatureFieldsLayout?.enterpriseShiftLeftRatio, 0.1),
+  );
 
   const areaLeft = panelGeometry.marginLeft + sideInset;
   const areaRight =
@@ -2611,39 +2701,92 @@ function addSignatureFieldsForFoxit(
     minHeight,
     toNumber(signatureFieldsLayout?.height, 52),
   );
+  const overlapOffsetXRatio = hasNumericValue(
+    signatureFieldsLayout?.overlapOffsetXRatio,
+  )
+    ? Number(signatureFieldsLayout.overlapOffsetXRatio)
+    : 0;
+  const overlapOffsetYRatio = hasNumericValue(
+    signatureFieldsLayout?.overlapOffsetYRatio,
+  )
+    ? Number(signatureFieldsLayout.overlapOffsetYRatio)
+    : -0.2;
   const overlapOffsetX = hasNumericValue(signatureFieldsLayout?.overlapOffsetX)
     ? Number(signatureFieldsLayout.overlapOffsetX)
-    : 0;
+    : fieldWidth * overlapOffsetXRatio;
   const overlapOffsetY = hasNumericValue(signatureFieldsLayout?.overlapOffsetY)
     ? Number(signatureFieldsLayout.overlapOffsetY)
-    : -fieldHeight * 0.25;
-  let y = panelGeometry.notaryLineY - lineGap - fieldHeight;
-
-  if (y < minBottom) {
-    y = minBottom;
+    : fieldHeight * overlapOffsetYRatio;
+  const maxTop = panelGeometry.notaryLineY - lineGap;
+  if (!Number.isFinite(maxTop) || maxTop <= 0) {
+    return [];
   }
 
-  const maxTop = panelGeometry.notaryLineY - lineGap;
-  if (y + fieldHeight > maxTop) {
-    fieldHeight = maxTop - y;
+  let lowerBound = minBottom;
+  let availableHeight = maxTop - lowerBound;
+  if (availableHeight < fieldHeight) {
+    const relaxedLowerBoundForPreferred = Math.max(0, maxTop - fieldHeight);
+    if (relaxedLowerBoundForPreferred < lowerBound) {
+      lowerBound = relaxedLowerBoundForPreferred;
+      availableHeight = maxTop - lowerBound;
+    }
+  }
+
+  if (availableHeight < minUsableHeight) {
+    const relaxedLowerBound = Math.max(0, maxTop - minUsableHeight);
+    if (relaxedLowerBound < lowerBound) {
+      lowerBound = relaxedLowerBound;
+      availableHeight = maxTop - lowerBound;
+    }
+  }
+
+  if (availableHeight < minHeight) {
+    return [];
+  }
+
+  if (fieldHeight > availableHeight) {
+    fieldHeight = availableHeight;
+  }
+
+  if (fieldHeight < minUsableHeight && availableHeight >= minUsableHeight) {
+    fieldHeight = minUsableHeight;
   }
 
   if (!Number.isFinite(fieldHeight) || fieldHeight < minHeight) {
     return [];
   }
 
+  const y = Math.max(lowerBound, maxTop - fieldHeight);
+
+  const personalWidth = fieldWidth;
+  const personalHeight = fieldHeight;
+  const personalMinX = 0;
+  const personalMaxX = Math.max(0, areaRight - personalWidth);
+  const personalBaseX = areaLeft + overlapOffsetX;
+  const personalX = Math.max(personalMinX, Math.min(personalBaseX, personalMaxX));
+  const enterpriseShiftLeft = overlap
+    ? fieldWidth * enterpriseShiftLeftRatio
+    : 0;
+  const enterpriseMaxX = Math.max(0, areaRight - fieldWidth);
+  const enterpriseXRaw = personalX - enterpriseShiftLeft;
+  const enterpriseX = Math.max(0, Math.min(enterpriseXRaw, enterpriseMaxX));
   const enterpriseRectDisplay = {
-    x: areaLeft,
+    x: enterpriseX,
     y,
     width: fieldWidth,
     height: fieldHeight,
   };
+  const personalYRaw = enterpriseRectDisplay.y + overlapOffsetY;
+  const personalY = Math.max(
+    lowerBound,
+    Math.min(personalYRaw, maxTop - personalHeight),
+  );
   const personalRectDisplay = overlap
     ? {
-        x: enterpriseRectDisplay.x + overlapOffsetX,
-        y: enterpriseRectDisplay.y + overlapOffsetY,
-        width: fieldWidth,
-        height: fieldHeight,
+        x: Math.max(personalMinX, Math.min(personalX, personalMaxX)),
+        y: personalY,
+        width: personalWidth,
+        height: personalHeight,
       }
     : {
         x: areaRight - fieldWidth,
@@ -3164,7 +3307,9 @@ async function stampPdf(pdfBuffer, options) {
       {
         width: 140,
         marginRight: 36,
-        offsetY: 72,
+        attachToOfficeSignature: true,
+        officeAlign: "center",
+        officeOffsetYRatio: -0.2,
       },
     );
 
@@ -3455,7 +3600,9 @@ async function stampPdf(pdfBuffer, options) {
       {
         width: 140,
         marginRight: 36,
-        offsetY: 72,
+        attachToOfficeSignature: true,
+        officeAlign: "center",
+        officeOffsetYRatio: -0.2,
         marginBottom: defaultMarginBottom,
       },
     );
@@ -3480,14 +3627,25 @@ async function stampPdf(pdfBuffer, options) {
         pageMetrics,
       );
 
-      drawBottomRightImage(page, sealImage, sealLayout, pageMetrics);
+      const officeSignatureRect = drawBottomRightImage(
+        page,
+        sealImage,
+        sealLayout,
+        pageMetrics,
+      );
       drawBottomRightImage(
         page,
         certifiedStampImage,
         certifiedStampLayout,
         pageMetrics,
       );
-      drawBottomRightImage(page, signatureImage, signatureLayout, pageMetrics);
+      drawPersonalSignatureNearOfficeSignature(
+        page,
+        signatureImage,
+        signatureLayout,
+        pageMetrics,
+        officeSignatureRect,
+      );
     } finally {
       endDisplaySpace(page, transformedDisplaySpace);
     }

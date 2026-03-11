@@ -198,14 +198,14 @@ static void ApplySignatureFields(PdfDocument pdf, SignatureJob job)
 
         form.AddField(sig, page);
 
+        var added = form.GetField(field.Name);
+        if (added is null)
+        {
+            continue;
+        }
+
         if (field.Rotation % 360 != 0)
         {
-            var added = form.GetField(field.Name);
-            if (added is null)
-            {
-                continue;
-            }
-
             var dict = added.GetPdfObject();
             var mk = dict.GetAsDictionary(PdfName.MK) ?? new PdfDictionary();
             mk.Put(PdfName.R, new PdfNumber(((field.Rotation % 360) + 360) % 360));

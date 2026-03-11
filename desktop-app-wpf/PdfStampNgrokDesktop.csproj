@@ -31,6 +31,7 @@
     <Resource Include="Assets\guide-step-2.png" />
     <Resource Include="Assets\guide-step-3.png" />
     <Resource Include="Assets\guide-step-4.png" />
+    <Resource Include="Assets\guide-step-5.png" />
   </ItemGroup>
   <ItemGroup>
     <None Include="support-contact.txt">

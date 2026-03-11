@@ -32,6 +32,11 @@ public partial class GuideWindow : Window
             UiText.Get("GuideStep4Body", "Bam \"Tao link\" de khoi dong tunnel. App se tu dong cap nhat endpoint vao o Google Sheet da cau hinh. Chi bam \"Copy\" khi ban can dan endpoint thu cong o noi khac."),
             null,
             "Assets/guide-step-4.png"),
+        new(
+            UiText.Get("GuideStep5Title", "Buoc 5 - Ky dung o ky doanh nghiep va o ky ca nhan"),
+            UiText.Get("GuideStep5Body", "O lech trai la ky doanh nghiep (con dau). O phia duoi ben phai la ky ca nhan (cong chung vien)."),
+            null,
+            "Assets/guide-step-5.png"),
     ];
 
     private int _currentIndex;
