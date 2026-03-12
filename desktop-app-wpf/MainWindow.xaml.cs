@@ -49,6 +49,7 @@ public partial class MainWindow : Window
     private Forms.ToolStripMenuItem? _trayCancelLinkMenuItem;
     private Forms.ToolStripMenuItem? _trayExitMenuItem;
     private bool _hasShownTrayHint;
+    private bool _isExitingFromTray;
     private enum TaskbarEdge
     {
         Bottom,
@@ -204,7 +205,7 @@ public partial class MainWindow : Window
         _trayCreateLinkMenuItem.Click += async (_, _) => await HandleTrayCreateLinkAsync();
         _trayCopyLinkMenuItem.Click += async (_, _) => await HandleTrayCopyLinkAsync();
         _trayCancelLinkMenuItem.Click += async (_, _) => await HandleTrayCancelLinkAsync();
-        _trayExitMenuItem.Click += async (_, _) => await HandleTrayExitAsync();
+        _trayExitMenuItem.Click += (_, _) => HandleTrayExit();
 
         _trayMenu = new Forms.ContextMenuStrip();
         _trayMenu.Items.AddRange(
@@ -235,6 +236,11 @@ public partial class MainWindow : Window
         }
 
         if (e.Button != Forms.MouseButtons.Right || _trayMenu is null)
+        {
+            return;
+        }
+
+        if (_isExitingFromTray)
         {
             return;
         }
@@ -327,10 +333,26 @@ public partial class MainWindow : Window
             result.IsSuccess ? Forms.ToolTipIcon.Info : Forms.ToolTipIcon.Warning);
     }
 
-    private async Task HandleTrayExitAsync()
+    private void HandleTrayExit()
     {
+        if (_isExitingFromTray)
+        {
+            return;
+        }
+
+        _isExitingFromTray = true;
+        if (_trayMenu is not null)
+        {
+            _trayMenu.Close();
+        }
+
+        if (_trayIcon is not null)
+        {
+            _trayIcon.Visible = false;
+        }
+
         _allowClose = true;
-        await Dispatcher.InvokeAsync(Close);
+        Close();
     }
 
     private void HideToTray(bool showHint)
