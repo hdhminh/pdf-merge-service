@@ -2173,6 +2173,24 @@ async function resolveAutoMarginBottom({
 
 const DEFAULT_NOTARY_TITLE = "C\u00d4NG CH\u1ee8NG VI\u00caN";
 
+function resolveCertificationText(rawText) {
+  if (typeof rawText !== "string") {
+    return DEFAULT_CERTIFICATION_TEXT;
+  }
+
+  const trimmed = rawText.trim();
+  if (!trimmed) {
+    return DEFAULT_CERTIFICATION_TEXT;
+  }
+
+  // Guard against mojibake/encoding loss from non-UTF8 clients.
+  if (trimmed.includes("?") || trimmed.includes("\uFFFD")) {
+    return DEFAULT_CERTIFICATION_TEXT;
+  }
+
+  return trimmed;
+}
+
 function resolveNotaryTitle(rawTitle) {
   if (typeof rawTitle !== "string") {
     return DEFAULT_NOTARY_TITLE;
@@ -2229,8 +2247,8 @@ function formatDateLine(dateValue) {
   return `Ng\u00e0y ${dd} th\u00e1ng ${mm} n\u0103m ${year}`;
 }
 function buildStampLines(options) {
-  const heading = (
-    options.certificationText || DEFAULT_CERTIFICATION_TEXT
+  const heading = resolveCertificationText(
+    options.certificationText,
   ).toLocaleUpperCase("vi-VN");
   const certNo = options.certificationNumber || "--";
   const bookNo = options.certificationBookNumber || "--";
@@ -2717,6 +2735,13 @@ function addSignatureFieldsForFoxit(
   const overlapOffsetY = hasNumericValue(signatureFieldsLayout?.overlapOffsetY)
     ? Number(signatureFieldsLayout.overlapOffsetY)
     : fieldHeight * overlapOffsetYRatio;
+  const enterpriseExtraShiftLeftRatio = Math.max(
+    0,
+    toNumber(signatureFieldsLayout?.enterpriseExtraShiftLeftRatio, 0.05),
+  );
+  const enterpriseExtraShiftLeft = overlap
+    ? fieldWidth * enterpriseExtraShiftLeftRatio
+    : 0;
   const maxTop = panelGeometry.notaryLineY - lineGap;
   if (!Number.isFinite(maxTop) || maxTop <= 0) {
     return [];
@@ -2768,7 +2793,7 @@ function addSignatureFieldsForFoxit(
     ? fieldWidth * enterpriseShiftLeftRatio
     : 0;
   const enterpriseMaxX = Math.max(0, areaRight - fieldWidth);
-  const enterpriseXRaw = personalX - enterpriseShiftLeft;
+  const enterpriseXRaw = personalX - enterpriseShiftLeft - enterpriseExtraShiftLeft;
   const enterpriseX = Math.max(0, Math.min(enterpriseXRaw, enterpriseMaxX));
   const enterpriseRectDisplay = {
     x: enterpriseX,
